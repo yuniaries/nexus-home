@@ -140,10 +140,15 @@ export async function createNexusApp(options = {}) {
     });
   await authStore.init();
 
+  const environmentPassword = options.password ?? process.env.CONFIG_PASSWORD ?? "";
+  const environmentPasswordHash = options.passwordHash ?? process.env.CONFIG_PASSWORD_HASH ?? "";
+  const passwordConfigured = () => authStore.isConfigured() || Boolean(environmentPassword || environmentPasswordHash);
+
   const sessions =
     options.sessions ??
     new SessionManager({
-      passwordHash: options.passwordHash ?? authStore.getPasswordHash() ?? process.env.CONFIG_PASSWORD_HASH ?? "",
+      password: authStore.isConfigured() ? "" : environmentPassword,
+      passwordHash: authStore.getPasswordHash() || environmentPasswordHash,
     });
   const loginLimiter = options.loginLimiter ?? new LoginRateLimiter();
   const events = options.events ?? new ConfigEventHub(options.eventOptions);
@@ -179,8 +184,8 @@ export async function createNexusApp(options = {}) {
 
   app.get("/api/session", (request, response) => {
     response.json({
-      setupRequired: !authStore.isConfigured(),
-      passwordRequired: authStore.isConfigured(),
+      setupRequired: !passwordConfigured(),
+      passwordRequired: passwordConfigured(),
       recoveryRequired: authStore.hasRecovery(),
       recoveryQuestion: authStore.getRecoveryQuestion(),
       authenticated: sessions.authenticate(request),
@@ -210,7 +215,7 @@ export async function createNexusApp(options = {}) {
       return;
     }
 
-    if (!authStore.isConfigured()) {
+    if (!passwordConfigured()) {
       if (typeof recoveryQuestion !== "string" || !recoveryQuestion.trim()) {
         response.status(400).json({ code: "RECOVERY_QUESTION_REQUIRED", error: "请设置密保问题。" });
         return;
@@ -220,7 +225,7 @@ export async function createNexusApp(options = {}) {
         return;
       }
       const passwordHash = hashPassword(password);
-      const recoveryAnswerHash = hashPassword(recoveryAnswer);
+      const recoveryAnswerHash = hashPassword(recoveryAnswer.normalize("NFC").trim());
       await authStore.setCredentials({ passwordHash, recoveryQuestion, recoveryAnswerHash });
       sessions.setPasswordHash(passwordHash);
       loginLimiter.success(limiterKey);
@@ -228,7 +233,7 @@ export async function createNexusApp(options = {}) {
       response.set("Set-Cookie", sessions.cookie(session.token, request));
       response.json({
         passwordRequired: true,
-        setupRequired: false,
+          setupRequired: false,
         recoveryRequired: true,
         recoveryQuestion: authStore.getRecoveryQuestion(),
         authenticated: true,

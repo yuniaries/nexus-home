@@ -5,6 +5,10 @@ import { atomicWriteJson } from "./config-store.mjs";
 
 const AUTH_FILE_MAX_BYTES = 8 * 1024;
 
+function normalizeText(value) {
+  return typeof value === "string" ? value.normalize("NFC").trim() : "";
+}
+
 async function readJsonFile(filePath) {
   const source = await readFile(filePath, "utf8");
   if (source.length > AUTH_FILE_MAX_BYTES) {
@@ -94,14 +98,15 @@ export class AuthStore {
   }
 
   verifyRecoveryAnswer(candidate) {
-    return verifyScryptHash(candidate, this.#current?.recoveryAnswerHash || "");
+    return verifyScryptHash(normalizeText(candidate), this.#current?.recoveryAnswerHash || "");
   }
 
   async setCredentials({ passwordHash, recoveryQuestion, recoveryAnswerHash } = {}) {
     if (typeof passwordHash !== "string" || !passwordHash) {
       throw new TypeError("passwordHash is required.");
     }
-    if (typeof recoveryQuestion !== "string" || !recoveryQuestion.trim()) {
+    const normalizedQuestion = normalizeText(recoveryQuestion);
+    if (!normalizedQuestion) {
       throw new TypeError("recoveryQuestion is required.");
     }
     if (typeof recoveryAnswerHash !== "string" || !recoveryAnswerHash) {
@@ -110,7 +115,7 @@ export class AuthStore {
     const next = {
       schemaVersion: 1,
       passwordHash,
-      recoveryQuestion: recoveryQuestion.trim(),
+      recoveryQuestion: normalizedQuestion,
       recoveryAnswerHash,
     };
     await atomicWriteJson(this.authPath, next);

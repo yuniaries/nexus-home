@@ -18,6 +18,7 @@ async function startFixture(t, { password = "" } = {}) {
     rootDir: path.resolve(fileURLToPath(new URL("..", import.meta.url))),
     defaultPath,
     configPath,
+    dataDir: path.join(directory, "data"),
     password,
     enableFrontend: false,
     eventOptions: { heartbeatMs: 50 },
@@ -128,7 +129,13 @@ test("configuration API authenticates writes, validates input, persists, and bro
   const sessionStatus = await fetch(`${fixture.baseUrl}/api/session`, {
     headers: { Cookie: cookie },
   });
-  assert.deepEqual(await sessionStatus.json(), { passwordRequired: true, authenticated: true });
+  assert.deepEqual(await sessionStatus.json(), {
+    setupRequired: false,
+    passwordRequired: true,
+    recoveryRequired: false,
+    recoveryQuestion: "",
+    authenticated: true,
+  });
 
   const unsafe = structuredClone(initial);
   unsafe.links[0].url = "javascript:alert(1)";
@@ -219,10 +226,16 @@ test("configuration API authenticates writes, validates input, persists, and bro
   controller.abort();
 });
 
-test("CONFIG_PASSWORD is optional and an unconfigured server accepts valid same-origin writes", async (t) => {
+test("an unconfigured server requires first-time password setup before configuration writes", async (t) => {
   const fixture = await startFixture(t);
   const status = await fetch(`${fixture.baseUrl}/api/session`);
-  assert.deepEqual(await status.json(), { passwordRequired: false, authenticated: true });
+  assert.deepEqual(await status.json(), {
+    setupRequired: true,
+    passwordRequired: false,
+    recoveryRequired: false,
+    recoveryQuestion: "",
+    authenticated: false,
+  });
 
   const initial = await (await fetch(`${fixture.baseUrl}/api/config`)).json();
   const candidate = structuredClone(initial);
@@ -232,8 +245,47 @@ test("CONFIG_PASSWORD is optional and an unconfigured server accepts valid same-
     headers: { "Content-Type": "application/json", "If-Match": '"rev-1"' },
     body: JSON.stringify(candidate),
   });
-  assert.equal(response.status, 200);
-  assert.equal((await response.json()).revision, 2);
+  assert.equal(response.status, 401);
+});
+
+test("first-time setup persists Chinese recovery details and allows a password reset", async (t) => {
+  const fixture = await startFixture(t);
+  const question = "我最喜欢的城市是哪里？";
+  const answer = "香港維多利亞港";
+
+  const setup = await fetch(`${fixture.baseUrl}/api/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: "initial password", recoveryQuestion: question, recoveryAnswer: answer }),
+  });
+  assert.equal(setup.status, 200);
+  assert.equal((await setup.json()).recoveryQuestion, question);
+
+  const status = await fetch(`${fixture.baseUrl}/api/session`);
+  assert.deepEqual(await status.json(), {
+    setupRequired: false,
+    passwordRequired: true,
+    recoveryRequired: true,
+    recoveryQuestion: question,
+    authenticated: false,
+  });
+
+  const reset = await fetch(`${fixture.baseUrl}/api/session/recover`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recoveryAnswer: answer.normalize("NFD"), newPassword: "new password" }),
+  });
+  assert.equal(reset.status, 200);
+  const resetPayload = await reset.json();
+  assert.equal(resetPayload.authenticated, true);
+  assert.equal(resetPayload.recoveryQuestion, question);
+
+  const login = await fetch(`${fixture.baseUrl}/api/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: "new password" }),
+  });
+  assert.equal(login.status, 200);
 });
 
 async function startFrontendMode(t, production) {

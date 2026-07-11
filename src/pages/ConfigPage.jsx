@@ -81,6 +81,41 @@ const iconChoices = [
   ["github", Github], ["notebook", TerminalSquare], ["mail", Mail], ["globe", Radio], ["terminal", Code2],
 ];
 
+const countryOptions = [
+  ["Afghanistan", "阿富汗", "Asia/Kabul"], ["Albania", "阿尔巴尼亚", "Europe/Tirane"], ["Algeria", "阿尔及利亚", "Africa/Algiers"], ["Argentina", "阿根廷", "America/Argentina/Buenos_Aires"], ["Armenia", "亚美尼亚", "Asia/Yerevan"], ["Australia", "澳大利亚", "Australia/Sydney"], ["Austria", "奥地利", "Europe/Vienna"], ["Azerbaijan", "阿塞拜疆", "Asia/Baku"],
+  ["Bangladesh", "孟加拉国", "Asia/Dhaka"], ["Belarus", "白俄罗斯", "Europe/Minsk"], ["Belgium", "比利时", "Europe/Brussels"], ["Bolivia", "玻利维亚", "America/La_Paz"], ["Bosnia and Herzegovina", "波黑", "Europe/Sarajevo"], ["Brazil", "巴西", "America/Sao_Paulo"], ["Bulgaria", "保加利亚", "Europe/Sofia"], ["Cambodia", "柬埔寨", "Asia/Phnom_Penh"],
+  ["Cameroon", "喀麦隆", "Africa/Douala"], ["Canada", "加拿大", "America/Toronto"], ["Chile", "智利", "America/Santiago"], ["China", "中国大陆", "Asia/Shanghai"], ["Colombia", "哥伦比亚", "America/Bogota"], ["Costa Rica", "哥斯达黎加", "America/Costa_Rica"], ["Croatia", "克罗地亚", "Europe/Zagreb"], ["Cuba", "古巴", "America/Havana"], ["Cyprus", "塞浦路斯", "Asia/Nicosia"], ["Czechia", "捷克", "Europe/Prague"],
+  ["Denmark", "丹麦", "Europe/Copenhagen"], ["Dominican Republic", "多米尼加", "America/Santo_Domingo"], ["Ecuador", "厄瓜多尔", "America/Guayaquil"], ["Egypt", "埃及", "Africa/Cairo"], ["Estonia", "爱沙尼亚", "Europe/Tallinn"], ["Ethiopia", "埃塞俄比亚", "Africa/Addis_Ababa"], ["Finland", "芬兰", "Europe/Helsinki"], ["France", "法国", "Europe/Paris"], ["Georgia", "格鲁吉亚", "Asia/Tbilisi"], ["Germany", "德国", "Europe/Berlin"], ["Ghana", "加纳", "Africa/Accra"], ["Greece", "希腊", "Europe/Athens"],
+  ["Hong Kong", "中国香港", "Asia/Hong_Kong"], ["Hungary", "匈牙利", "Europe/Budapest"], ["Iceland", "冰岛", "Atlantic/Reykjavik"], ["India", "印度", "Asia/Kolkata"], ["Indonesia", "印度尼西亚", "Asia/Jakarta"], ["Iran", "伊朗", "Asia/Tehran"], ["Iraq", "伊拉克", "Asia/Baghdad"], ["Ireland", "爱尔兰", "Europe/Dublin"], ["Israel", "以色列", "Asia/Jerusalem"], ["Italy", "意大利", "Europe/Rome"], ["Jamaica", "牙买加", "America/Jamaica"], ["Japan", "日本", "Asia/Tokyo"], ["Jordan", "约旦", "Asia/Amman"],
+  ["Kazakhstan", "哈萨克斯坦", "Asia/Almaty"], ["Kenya", "肯尼亚", "Africa/Nairobi"], ["Kuwait", "科威特", "Asia/Kuwait"], ["Kyrgyzstan", "吉尔吉斯斯坦", "Asia/Bishkek"], ["Laos", "老挝", "Asia/Vientiane"], ["Latvia", "拉脱维亚", "Europe/Riga"], ["Lebanon", "黎巴嫩", "Asia/Beirut"], ["Libya", "利比亚", "Africa/Tripoli"], ["Lithuania", "立陶宛", "Europe/Vilnius"], ["Luxembourg", "卢森堡", "Europe/Luxembourg"], ["Macau", "中国澳门", "Asia/Macau"], ["Malaysia", "马来西亚", "Asia/Kuala_Lumpur"], ["Mexico", "墨西哥", "America/Mexico_City"], ["Moldova", "摩尔多瓦", "Europe/Chisinau"], ["Mongolia", "蒙古", "Asia/Ulaanbaatar"], ["Morocco", "摩洛哥", "Africa/Casablanca"], ["Myanmar", "缅甸", "Asia/Yangon"],
+  ["Nepal", "尼泊尔", "Asia/Kathmandu"], ["Netherlands", "荷兰", "Europe/Amsterdam"], ["New Zealand", "新西兰", "Pacific/Auckland"], ["Nigeria", "尼日利亚", "Africa/Lagos"], ["North Korea", "朝鲜", "Asia/Pyongyang"], ["Norway", "挪威", "Europe/Oslo"], ["Pakistan", "巴基斯坦", "Asia/Karachi"], ["Palestine", "巴勒斯坦", "Asia/Gaza"], ["Panama", "巴拿马", "America/Panama"], ["Peru", "秘鲁", "America/Lima"], ["Philippines", "菲律宾", "Asia/Manila"], ["Poland", "波兰", "Europe/Warsaw"], ["Portugal", "葡萄牙", "Europe/Lisbon"], ["Puerto Rico", "波多黎各", "America/Puerto_Rico"],
+  ["Qatar", "卡塔尔", "Asia/Qatar"], ["Romania", "罗马尼亚", "Europe/Bucharest"], ["Russia", "俄罗斯", "Europe/Moscow"], ["Saudi Arabia", "沙特阿拉伯", "Asia/Riyadh"], ["Serbia", "塞尔维亚", "Europe/Belgrade"], ["Singapore", "新加坡", "Asia/Singapore"], ["Slovakia", "斯洛伐克", "Europe/Bratislava"], ["Slovenia", "斯洛文尼亚", "Europe/Ljubljana"], ["South Africa", "南非", "Africa/Johannesburg"], ["South Korea", "韩国", "Asia/Seoul"], ["Spain", "西班牙", "Europe/Madrid"], ["Sri Lanka", "斯里兰卡", "Asia/Colombo"], ["Sweden", "瑞典", "Europe/Stockholm"], ["Switzerland", "瑞士", "Europe/Zurich"],
+  ["Taiwan", "中国台湾", "Asia/Taipei"], ["Tajikistan", "塔吉克斯坦", "Asia/Dushanbe"], ["Thailand", "泰国", "Asia/Bangkok"], ["Tunisia", "突尼斯", "Africa/Tunis"], ["Turkey", "土耳其", "Europe/Istanbul"], ["Ukraine", "乌克兰", "Europe/Kyiv"], ["United Arab Emirates", "阿拉伯联合酋长国", "Asia/Dubai"], ["United Kingdom", "英国", "Europe/London"], ["United States", "美国", "America/New_York"], ["Uruguay", "乌拉圭", "America/Montevideo"], ["Uzbekistan", "乌兹别克斯坦", "Asia/Tashkent"], ["Venezuela", "委内瑞拉", "America/Caracas"], ["Vietnam", "越南", "Asia/Ho_Chi_Minh"], ["Yemen", "也门", "Asia/Aden"],
+].map(([value, label, timeZone]) => ({ value, label, timeZone }));
+
+const fallbackTimeZones = ["Etc/UTC", "Asia/Shanghai", "Asia/Hong_Kong", "Asia/Tokyo", "Asia/Singapore", "Asia/Kolkata", "Asia/Dubai", "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Moscow", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "America/Toronto", "America/Sao_Paulo", "Australia/Sydney", "Pacific/Auckland"];
+const timeZoneOptions = (typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : fallbackTimeZones).map((value) => ({ value, label: value }));
+
+function utcOffset(timeZone) {
+  try {
+    const part = new Intl.DateTimeFormat("en", { timeZone, timeZoneName: "shortOffset" }).formatToParts().find((item) => item.type === "timeZoneName")?.value;
+    return (part || "UTC").replace("GMT", "UTC");
+  } catch {
+    return "UTC";
+  }
+}
+
+function parseLocation(location) {
+  const [storedCountry = "", storedTimeZone = ""] = String(location || "").split(" · ");
+  const country = countryOptions.find((item) => item.value === storedCountry) || countryOptions.find((item) => item.value === "Hong Kong");
+  const timeZone = timeZoneOptions.some((item) => item.value === storedTimeZone) ? storedTimeZone : country.timeZone;
+  return { country: country.value, timeZone };
+}
+
+function formatLocation(country, timeZone) {
+  return `${country} · ${timeZone} · ${utcOffset(timeZone)}`;
+}
+
 function clone(value) {
   return typeof structuredClone === "function" ? structuredClone(value) : JSON.parse(JSON.stringify(value));
 }
@@ -170,6 +205,30 @@ function TextField({ label, hint, value, onChange, multiline = false, type = "te
   );
 }
 
+function SelectField({ label, hint, value, onChange, options, wide = false }) {
+  return (
+    <label className={`field ${wide ? "field--wide" : ""}`}>
+      <span className="field__label">{label}{hint && <small>{hint}</small>}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function LocationTimeZoneFields({ value, onChange }) {
+  const { country, timeZone } = parseLocation(value);
+  const setCountry = (nextCountry) => {
+    const option = countryOptions.find((item) => item.value === nextCountry);
+    onChange(formatLocation(nextCountry, option?.timeZone || timeZone));
+  };
+  const setTimeZone = (nextTimeZone) => onChange(formatLocation(country, nextTimeZone));
+  return <>
+    <SelectField label="所在国家 / 地区" hint="覆盖全球主要国家和地区" value={country} onChange={setCountry} options={countryOptions} />
+    <SelectField label="时区" hint="完整 IANA 时区库" value={timeZone} onChange={setTimeZone} options={timeZoneOptions} />
+  </>;
+}
+
 function ColorField({ label, value, onChange }) {
   return (
     <label className="field color-field">
@@ -231,6 +290,19 @@ function PanelBlock({ title, note, children, icon: Icon, className = "" }) {
   );
 }
 
+function SecretField({ label, value, onChange, placeholder, visible, onToggle, autoFocus = false, invalid = false, autoComplete, allowChineseComposition = false }) {
+  return (
+    <label className="login-field">
+      <span>{label}</span>
+      <div className={invalid ? "has-error" : ""}>
+        <KeyRound size={17} />
+        <input autoFocus={autoFocus} autoComplete={autoComplete} lang="zh-CN" inputMode="text" type={allowChineseComposition ? "text" : visible ? "text" : "password"} className={allowChineseComposition && !visible ? "secret-answer--masked" : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+        <button type="button" onClick={onToggle} aria-label={visible ? `隐藏${label}` : `显示${label}`}>{visible ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+      </div>
+    </label>
+  );
+}
+
 function AuthGate({ mode = "login", recoveryQuestion = "", canRecover = false, onAuthenticated }) {
   const [screen, setScreen] = useState(mode);
   const [password, setPassword] = useState("");
@@ -240,39 +312,33 @@ function AuthGate({ mode = "login", recoveryQuestion = "", canRecover = false, o
   const [confirmRecoveryAnswer, setConfirmRecoveryAnswer] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [show, setShow] = useState(false);
+  const [visible, setVisible] = useState({});
   const [status, setStatus] = useState("idle");
+  const toggle = (key) => setVisible((current) => ({ ...current, [key]: !current[key] }));
+  const update = (setter) => (value) => { setter(value); setStatus("idle"); };
 
   useEffect(() => {
     setScreen(mode);
     setStatus("idle");
     setPassword("");
     setConfirmPassword("");
-    setRecoveryPrompt(recoveryQuestion || "");
+    setRecoveryPrompt("");
     setRecoveryAnswer("");
     setConfirmRecoveryAnswer("");
     setNewPassword("");
     setConfirmNewPassword("");
-    setShow(false);
+    setVisible({});
   }, [mode, recoveryQuestion]);
 
   const isSetup = screen === "setup";
   const isRecover = screen === "recover";
+  const recoveryAvailable = Boolean(recoveryQuestion.trim());
 
   const submit = async (event) => {
     event.preventDefault();
-    if (isSetup && password !== confirmPassword) {
-      setStatus("error");
-      return;
-    }
-    if (isSetup && (!recoveryPrompt.trim() || !recoveryAnswer.trim() || recoveryAnswer !== confirmRecoveryAnswer)) {
-      setStatus("error");
-      return;
-    }
-    if (isRecover && newPassword !== confirmNewPassword) {
-      setStatus("error");
-      return;
-    }
+    if (isSetup && password !== confirmPassword) return setStatus("error");
+    if (isSetup && (!recoveryPrompt.trim() || !recoveryAnswer.trim() || recoveryAnswer !== confirmRecoveryAnswer)) return setStatus("error");
+    if (isRecover && (!recoveryAvailable || newPassword !== confirmNewPassword)) return setStatus("error");
     setStatus("loading");
     try {
       const response = await fetch(isRecover ? "/api/session/recover" : "/api/session", {
@@ -281,9 +347,10 @@ function AuthGate({ mode = "login", recoveryQuestion = "", canRecover = false, o
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(isRecover ? { recoveryAnswer, newPassword } : isSetup ? { password, recoveryQuestion: recoveryPrompt, recoveryAnswer } : { password }),
       });
-      if (!response.ok) throw new Error("认证失败");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "认证失败");
       setStatus("success");
-      window.setTimeout(onAuthenticated, 280);
+      window.setTimeout(() => onAuthenticated(result), 280);
     } catch {
       setStatus("error");
     }
@@ -293,76 +360,28 @@ function AuthGate({ mode = "login", recoveryQuestion = "", canRecover = false, o
     <div className="login-shell">
       <div className="login-ambient"><i /><i /><i /></div>
       <div className="login-grid" />
-      <form className="login-card" onSubmit={submit}>
+      <form className="login-card" onSubmit={submit} lang="zh-CN">
         <div className="login-emblem"><span><LockKeyhole size={28} /></span><i /><i /><i /></div>
         <span className="login-kicker"><ShieldCheck size={14} /> {isSetup ? "INITIALIZE CONFIG CHANNEL" : isRecover ? "PASSWORD RECOVERY" : "SECURE CONFIG CHANNEL"}</span>
         <h1>{isSetup ? "设置第一个管理密码" : isRecover ? "找回并重置密码" : "进入配置中枢"}</h1>
         <p>{isSetup ? "这是第一次打开配置台，请先创建一个管理密码和密保问题。" : isRecover ? "回答已设置的密保问题后，你可以立刻重置新密码。" : "这个入口可以改变公开主页。请输入已设置的管理密码，建立一条安全会话。"}</p>
 
         {isRecover ? <>
-          <label>
-            <span>SECURITY QUESTION</span>
-            <div className="login-readonly">
-              <ShieldCheck size={16} />
-              <input value={recoveryQuestion || recoveryPrompt || "未配置密保问题"} readOnly />
-            </div>
-          </label>
-          <label>
-            <span>RECOVERY ANSWER</span>
-            <div className={status === "error" ? "has-error" : ""}>
-              <KeyRound size={17} />
-              <input autoFocus type={show ? "text" : "password"} value={recoveryAnswer} onChange={(event) => { setRecoveryAnswer(event.target.value); setStatus("idle"); }} placeholder="输入密保答案" />
-              <button type="button" onClick={() => setShow(!show)} aria-label={show ? "隐藏答案" : "显示答案"}>{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
-            </div>
-          </label>
-          <label>
-            <span>NEW PASSWORD</span>
-            <div className={status === "error" ? "has-error" : ""}>
-              <KeyRound size={17} />
-              <input type={show ? "text" : "password"} value={newPassword} onChange={(event) => { setNewPassword(event.target.value); setStatus("idle"); }} placeholder="输入新密码" />
-            </div>
-          </label>
-          <label>
-            <span>CONFIRM NEW PASSWORD</span>
-            <div className={status === "error" ? "has-error" : ""}>
-              <KeyRound size={17} />
-              <input type={show ? "text" : "password"} value={confirmNewPassword} onChange={(event) => { setConfirmNewPassword(event.target.value); setStatus("idle"); }} placeholder="再次输入新密码" />
-            </div>
-          </label>
+          <label className="login-field"><span>SECURITY QUESTION</span><div className="login-readonly"><ShieldCheck size={16} /><input lang="zh-CN" value={recoveryQuestion} readOnly /></div></label>
+          <SecretField label="RECOVERY ANSWER" value={recoveryAnswer} onChange={update(setRecoveryAnswer)} placeholder="输入密保答案" visible={visible.recoveryAnswer} onToggle={() => toggle("recoveryAnswer")} autoFocus invalid={status === "error"} autoComplete="off" allowChineseComposition />
+          <SecretField label="NEW PASSWORD" value={newPassword} onChange={update(setNewPassword)} placeholder="输入新密码" visible={visible.newPassword} onToggle={() => toggle("newPassword")} invalid={status === "error"} autoComplete="new-password" />
+          <SecretField label="CONFIRM NEW PASSWORD" value={confirmNewPassword} onChange={update(setConfirmNewPassword)} placeholder="再次输入新密码" visible={visible.confirmNewPassword} onToggle={() => toggle("confirmNewPassword")} invalid={status === "error"} autoComplete="new-password" />
         </> : <>
-        <label>
-          <span>{isSetup ? "NEW PASSWORD" : "ACCESS KEY"}</span>
-          <div className={status === "error" ? "has-error" : ""}>
-            <KeyRound size={17} />
-            <input autoFocus type={show ? "text" : "password"} value={password} onChange={(event) => { setPassword(event.target.value); setStatus("idle"); }} placeholder="输入 CONFIG_PASSWORD" />
-            <button type="button" onClick={() => setShow(!show)} aria-label={show ? "隐藏密码" : "显示密码"}>{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
-          </div>
+          <SecretField label={isSetup ? "NEW PASSWORD" : "ACCESS KEY"} value={password} onChange={update(setPassword)} placeholder={isSetup ? "输入管理密码" : "输入管理密码"} visible={visible.password} onToggle={() => toggle("password")} autoFocus invalid={status === "error"} autoComplete={isSetup ? "new-password" : "current-password"} />
           {isSetup && <>
-            <span>CONFIRM PASSWORD</span>
-            <div className={status === "error" ? "has-error" : ""}>
-              <KeyRound size={17} />
-              <input type={show ? "text" : "password"} value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setStatus("idle"); }} placeholder="再次输入密码确认" />
-            </div>
-            <span>SECURITY QUESTION</span>
-            <div className={status === "error" ? "has-error" : ""}>
-              <BadgeInfo size={17} />
-              <input value={recoveryPrompt} onChange={(event) => { setRecoveryPrompt(event.target.value); setStatus("idle"); }} placeholder="例如：你最喜欢的城市？" />
-            </div>
-            <span>SECURITY ANSWER</span>
-            <div className={status === "error" ? "has-error" : ""}>
-              <KeyRound size={17} />
-              <input type={show ? "text" : "password"} value={recoveryAnswer} onChange={(event) => { setRecoveryAnswer(event.target.value); setStatus("idle"); }} placeholder="输入密保答案" />
-            </div>
-            <span>CONFIRM ANSWER</span>
-            <div className={status === "error" ? "has-error" : ""}>
-              <KeyRound size={17} />
-              <input type={show ? "text" : "password"} value={confirmRecoveryAnswer} onChange={(event) => { setConfirmRecoveryAnswer(event.target.value); setStatus("idle"); }} placeholder="再次输入答案确认" />
-            </div>
+            <SecretField label="CONFIRM PASSWORD" value={confirmPassword} onChange={update(setConfirmPassword)} placeholder="再次输入密码确认" visible={visible.confirmPassword} onToggle={() => toggle("confirmPassword")} invalid={status === "error"} autoComplete="new-password" />
+            <label className="login-field"><span>SECURITY QUESTION</span><div className={status === "error" ? "has-error" : ""}><BadgeInfo size={17} /><input lang="zh-CN" inputMode="text" autoComplete="off" value={recoveryPrompt} onChange={(event) => update(setRecoveryPrompt)(event.target.value)} placeholder="例如：你最喜欢的城市？" /></div></label>
+            <SecretField label="SECURITY ANSWER" value={recoveryAnswer} onChange={update(setRecoveryAnswer)} placeholder="输入密保答案" visible={visible.recoveryAnswer} onToggle={() => toggle("recoveryAnswer")} invalid={status === "error"} autoComplete="off" allowChineseComposition />
+            <SecretField label="CONFIRM ANSWER" value={confirmRecoveryAnswer} onChange={update(setConfirmRecoveryAnswer)} placeholder="再次输入答案确认" visible={visible.confirmRecoveryAnswer} onToggle={() => toggle("confirmRecoveryAnswer")} invalid={status === "error"} autoComplete="off" allowChineseComposition />
           </>}
-          {status === "error" && <small className="login-error"><CircleAlert size={13} /> {isRecover ? "密保答案或新密码有误" : isSetup ? "请确认密码和密保信息" : "密码不正确，请重新确认"}</small>}
-        </label>
         </>}
-        <button className="login-submit" type="submit" disabled={status === "loading" || (isRecover ? !recoveryAnswer || !newPassword || !confirmNewPassword : !password)}>
+        {status === "error" && <small className="login-error"><CircleAlert size={13} /> {isRecover ? "密保答案或新密码有误" : isSetup ? "请确认密码和密保信息" : "密码不正确，请重新确认"}</small>}
+        <button className="login-submit" type="submit" disabled={status === "loading" || (isRecover ? !recoveryAvailable || !recoveryAnswer || !newPassword || !confirmNewPassword : !password)}>
           {status === "loading" ? <LoaderCircle className="spin" size={18} /> : status === "success" ? <Check size={18} /> : <ArrowRight size={18} />}
           <span>{status === "loading" ? (isSetup ? "正在创建" : isRecover ? "正在重置" : "正在验证") : status === "success" ? "通道已建立" : isSetup ? "创建密码" : isRecover ? "重置密码" : "解锁控制台"}</span>
         </button>
@@ -397,7 +416,7 @@ function IdentityEditor({ draft, change }) {
       </PanelBlock>
       <PanelBlock title="公开坐标" note="Contact vector" icon={Radio}>
         <div className="field-grid">
-          <TextField label="所在地 / 时区" value={draft.identity.location} onChange={(value) => change("identity.location", value)} />
+          <LocationTimeZoneFields value={draft.identity.location} onChange={(value) => change("identity.location", value)} />
           <TextField label="合作状态" value={draft.identity.availability} onChange={(value) => change("identity.availability", value)} />
           <TextField label="联系邮箱" type="email" value={draft.identity.email} onChange={(value) => change("identity.email", value)} wide />
         </div>
@@ -898,8 +917,8 @@ export function ConfigPage() {
   }, [activeSection, draft, change, updateArray]);
 
   if (auth.loading) return <div className="config-loading"><div className="config-loader"><i /><i /><i /></div><span>ESTABLISHING CONFIG CHANNEL</span></div>;
-  if (auth.setupRequired && !auth.authenticated) return <AuthGate mode="setup" onAuthenticated={() => setAuth((value) => ({ ...value, authenticated: true, setupRequired: false, required: true, recoveryRequired: true }))} />;
-  if (auth.required && !auth.authenticated) return <AuthGate mode="login" canRecover={auth.recoveryRequired} recoveryQuestion={auth.recoveryQuestion} onAuthenticated={() => setAuth((value) => ({ ...value, authenticated: true }))} />;
+  if (auth.setupRequired) return <AuthGate mode="setup" onAuthenticated={(result) => setAuth((value) => ({ ...value, authenticated: true, setupRequired: false, required: true, recoveryRequired: true, recoveryQuestion: result?.recoveryQuestion || value.recoveryQuestion }))} />;
+  if (auth.required && !auth.authenticated) return <AuthGate mode="login" canRecover={auth.recoveryRequired} recoveryQuestion={auth.recoveryQuestion} onAuthenticated={(result) => setAuth((value) => ({ ...value, authenticated: true, recoveryRequired: Boolean(result?.recoveryRequired ?? value.recoveryRequired), recoveryQuestion: result?.recoveryQuestion || value.recoveryQuestion }))} />;
 
   return (
     <div className="config-shell">

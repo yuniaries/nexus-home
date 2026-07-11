@@ -130,6 +130,8 @@ export class SessionManager {
   }
 
   authenticate(request) {
+    // An uninitialized instance must be set up before configuration data can
+    // be viewed or changed. Only the first-time setup endpoint is available.
     if (!this.enabled) return false;
     const token = this.tokenFromRequest(request);
     if (!token) return false;
