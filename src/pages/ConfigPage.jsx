@@ -513,6 +513,12 @@ function AppearanceEditor({ draft, change, applyPalette }) {
           <ColorField label="次级文字" value={draft.theme.muted} onChange={(value) => change("theme.muted", value)} />
         </div>
       </PanelBlock>
+      <PanelBlock title="主页主按钮" note="Primary action" icon={Zap}>
+        <div className="field-grid field-grid--colors">
+          <ColorField label="按钮起始色" value={draft.theme.primary} onChange={(value) => change("theme.primary", value)} />
+          <ColorField label="按钮结束色" value={draft.theme.accent} onChange={(value) => change("theme.accent", value)} />
+        </div>
+      </PanelBlock>
       <PanelBlock title="玻璃材质" note="Glass material" icon={Layers3}>
         <div className="range-grid">
           <RangeField label="玻璃不透明度" value={draft.theme.glassOpacity} min={0.12} max={0.9} step={0.01} onChange={(value) => change("theme.glassOpacity", value)} />
