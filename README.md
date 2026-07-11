@@ -30,10 +30,10 @@ npm start
 
 ## 环境变量
 
-仓库不包含 `.env`，也不包含任何密码、哈希或 API Key。克隆项目后，从 `.env.example` 复制一份并命名为 `.env`：
+仓库不包含 `.env`，也不包含任何密码、哈希或 API Key。克隆项目后，从 `.env.example` 复制一份并命名为 `nexus-home.env`：
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .env.example nexus-home.env
 ```
 
 填写邮件恢复服务：可用Resend
