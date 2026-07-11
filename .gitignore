@@ -2,5 +2,5 @@ node_modules/
 dist/
 data/config.json
 data/*.tmp
-# .env
+.env
 npm-debug.log*
