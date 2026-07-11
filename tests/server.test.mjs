@@ -136,7 +136,6 @@ test("configuration API authenticates writes, validates input, persists, and bro
     recoveryRequired: false,
     recoveryMode: "",
     recoveryEmail: "",
-    recoveryQuestion: "",
     authenticated: true,
   });
 
@@ -238,7 +237,6 @@ test("an unconfigured server requires first-time password setup before configura
     recoveryRequired: false,
     recoveryMode: "",
     recoveryEmail: "",
-    recoveryQuestion: "",
     authenticated: false,
   });
 
@@ -273,7 +271,6 @@ test("first-time setup binds a recovery email and allows a verification-code pas
     recoveryRequired: true,
     recoveryMode: "email",
     recoveryEmail,
-    recoveryQuestion: "",
     authenticated: false,
   });
 
