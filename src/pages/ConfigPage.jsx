@@ -312,7 +312,7 @@ function AuthGate({ mode = "login", recoveryQuestion = "", canRecover = false, o
   const [confirmRecoveryAnswer, setConfirmRecoveryAnswer] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [visible, setVisible] = useState({});
+  const [visible, setVisible] = useState({ recoveryAnswer: true, confirmRecoveryAnswer: true });
   const [status, setStatus] = useState("idle");
   const toggle = (key) => setVisible((current) => ({ ...current, [key]: !current[key] }));
   const update = (setter) => (value) => { setter(value); setStatus("idle"); };
@@ -327,7 +327,7 @@ function AuthGate({ mode = "login", recoveryQuestion = "", canRecover = false, o
     setConfirmRecoveryAnswer("");
     setNewPassword("");
     setConfirmNewPassword("");
-    setVisible({});
+    setVisible({ recoveryAnswer: true, confirmRecoveryAnswer: true });
   }, [mode, recoveryQuestion]);
 
   const isSetup = screen === "setup";
