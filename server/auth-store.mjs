@@ -4,6 +4,7 @@ import { scryptSync, timingSafeEqual } from "node:crypto";
 import { atomicWriteJson } from "./config-store.mjs";
 
 const AUTH_FILE_MAX_BYTES = 8 * 1024;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function normalizeText(value) {
   return typeof value === "string" ? value.normalize("NFC").trim() : "";
@@ -54,12 +55,13 @@ export class AuthStore {
         this.#current = {
           schemaVersion: 1,
           passwordHash: typeof stored?.passwordHash === "string" ? stored.passwordHash : "",
+          recoveryEmail: typeof stored?.recoveryEmail === "string" ? stored.recoveryEmail.trim().toLowerCase() : "",
           recoveryQuestion: typeof stored?.recoveryQuestion === "string" ? stored.recoveryQuestion : "",
           recoveryAnswerHash: typeof stored?.recoveryAnswerHash === "string" ? stored.recoveryAnswerHash : "",
         };
       } catch (error) {
         if (error.code !== "ENOENT") throw error;
-        this.#current = { schemaVersion: 1, passwordHash: "", recoveryQuestion: "", recoveryAnswerHash: "" };
+        this.#current = { schemaVersion: 1, passwordHash: "", recoveryEmail: "", recoveryQuestion: "", recoveryAnswerHash: "" };
       }
       this.ready = true;
       return this.get();
@@ -82,7 +84,15 @@ export class AuthStore {
   }
 
   hasRecovery() {
-    return Boolean(this.#current?.recoveryQuestion && this.#current?.recoveryAnswerHash);
+    return this.hasRecoveryEmail() || Boolean(this.#current?.recoveryQuestion && this.#current?.recoveryAnswerHash);
+  }
+
+  hasRecoveryEmail() {
+    return Boolean(this.#current?.recoveryEmail && EMAIL_PATTERN.test(this.#current.recoveryEmail));
+  }
+
+  getRecoveryEmail() {
+    return this.#current?.recoveryEmail || "";
   }
 
   getPasswordHash() {
@@ -101,22 +111,20 @@ export class AuthStore {
     return verifyScryptHash(normalizeText(candidate), this.#current?.recoveryAnswerHash || "");
   }
 
-  async setCredentials({ passwordHash, recoveryQuestion, recoveryAnswerHash } = {}) {
+  async setCredentials({ passwordHash, recoveryEmail = "", recoveryQuestion = "", recoveryAnswerHash = "" } = {}) {
     if (typeof passwordHash !== "string" || !passwordHash) {
       throw new TypeError("passwordHash is required.");
     }
+    const normalizedEmail = typeof recoveryEmail === "string" ? recoveryEmail.trim().toLowerCase() : "";
     const normalizedQuestion = normalizeText(recoveryQuestion);
-    if (!normalizedQuestion) {
-      throw new TypeError("recoveryQuestion is required.");
-    }
-    if (typeof recoveryAnswerHash !== "string" || !recoveryAnswerHash) {
-      throw new TypeError("recoveryAnswerHash is required.");
-    }
+    const legacyRecoveryConfigured = normalizedQuestion && typeof recoveryAnswerHash === "string" && recoveryAnswerHash;
+    if (!EMAIL_PATTERN.test(normalizedEmail) && !legacyRecoveryConfigured) throw new TypeError("recoveryEmail or recovery question is required.");
     const next = {
       schemaVersion: 1,
       passwordHash,
+      recoveryEmail: EMAIL_PATTERN.test(normalizedEmail) ? normalizedEmail : "",
       recoveryQuestion: normalizedQuestion,
-      recoveryAnswerHash,
+      recoveryAnswerHash: legacyRecoveryConfigured ? recoveryAnswerHash : "",
     };
     await atomicWriteJson(this.authPath, next);
     this.#current = next;
@@ -127,6 +135,7 @@ export class AuthStore {
   async setPasswordHash(passwordHash) {
     return this.setCredentials({
       passwordHash,
+      recoveryEmail: this.getRecoveryEmail(),
       recoveryQuestion: this.getRecoveryQuestion(),
       recoveryAnswerHash: this.getRecoveryAnswerHash(),
     });

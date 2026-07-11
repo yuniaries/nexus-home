@@ -6,6 +6,8 @@ import { ConfigValidationError } from "./config-schema.mjs";
 import { ConfigStore, RevisionConflictError } from "./config-store.mjs";
 import { AuthStore } from "./auth-store.mjs";
 import { hashPassword } from "./hash-password.mjs";
+import { RecoveryCodeStore } from "./recovery-code-store.mjs";
+import { ResendMailer } from "./resend-mailer.mjs";
 import { LoginRateLimiter, SessionManager } from "./sessions.mjs";
 
 const JSON_LIMIT = "256kb";
@@ -151,6 +153,8 @@ export async function createNexusApp(options = {}) {
       passwordHash: authStore.getPasswordHash() || environmentPasswordHash,
     });
   const loginLimiter = options.loginLimiter ?? new LoginRateLimiter();
+  const recoveryCodes = options.recoveryCodes ?? new RecoveryCodeStore();
+  const mailer = options.mailer ?? new ResendMailer();
   const events = options.events ?? new ConfigEventHub(options.eventOptions);
   const logger = options.logger ?? console;
   const app = express();
@@ -187,6 +191,8 @@ export async function createNexusApp(options = {}) {
       setupRequired: !passwordConfigured(),
       passwordRequired: passwordConfigured(),
       recoveryRequired: authStore.hasRecovery(),
+      recoveryMode: authStore.hasRecoveryEmail() ? "email" : authStore.hasRecovery() ? "question" : "",
+      recoveryEmail: authStore.getRecoveryEmail(),
       recoveryQuestion: authStore.getRecoveryQuestion(),
       authenticated: sessions.authenticate(request),
     });
@@ -206,6 +212,7 @@ export async function createNexusApp(options = {}) {
 
     const recoveryQuestion = request.body?.recoveryQuestion;
     const recoveryAnswer = request.body?.recoveryAnswer;
+    const recoveryEmail = request.body?.recoveryEmail;
 
     const limiterKey = request.ip;
     const rate = loginLimiter.status(limiterKey);
@@ -216,17 +223,12 @@ export async function createNexusApp(options = {}) {
     }
 
     if (!passwordConfigured()) {
-      if (typeof recoveryQuestion !== "string" || !recoveryQuestion.trim()) {
-        response.status(400).json({ code: "RECOVERY_QUESTION_REQUIRED", error: "请设置密保问题。" });
-        return;
-      }
-      if (typeof recoveryAnswer !== "string" || !recoveryAnswer.trim()) {
-        response.status(400).json({ code: "RECOVERY_ANSWER_REQUIRED", error: "请设置密保答案。" });
+      if (typeof recoveryEmail !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail.trim())) {
+        response.status(400).json({ code: "RECOVERY_EMAIL_REQUIRED", error: "请输入有效的恢复邮箱。" });
         return;
       }
       const passwordHash = hashPassword(password);
-      const recoveryAnswerHash = hashPassword(recoveryAnswer.normalize("NFC").trim());
-      await authStore.setCredentials({ passwordHash, recoveryQuestion, recoveryAnswerHash });
+      await authStore.setCredentials({ passwordHash, recoveryEmail });
       sessions.setPasswordHash(passwordHash);
       loginLimiter.success(limiterKey);
       const session = sessions.create();
@@ -235,7 +237,8 @@ export async function createNexusApp(options = {}) {
         passwordRequired: true,
           setupRequired: false,
         recoveryRequired: true,
-        recoveryQuestion: authStore.getRecoveryQuestion(),
+        recoveryMode: "email",
+        recoveryEmail: authStore.getRecoveryEmail(),
         authenticated: true,
         expiresAt: new Date(session.expiresAt).toISOString(),
       });
@@ -255,10 +258,41 @@ export async function createNexusApp(options = {}) {
       passwordRequired: true,
       setupRequired: false,
       recoveryRequired: authStore.hasRecovery(),
+      recoveryMode: authStore.hasRecoveryEmail() ? "email" : authStore.hasRecovery() ? "question" : "",
+      recoveryEmail: authStore.getRecoveryEmail(),
       recoveryQuestion: authStore.getRecoveryQuestion(),
       authenticated: true,
       expiresAt: new Date(session.expiresAt).toISOString(),
     });
+  });
+
+  app.post("/api/session/recovery-code", async (request, response) => {
+    if (!isSameOrigin(request)) {
+      response.status(403).json({ code: "ORIGIN_MISMATCH", error: "请求来源不受信任。" });
+      return;
+    }
+    const recoveryEmail = authStore.getRecoveryEmail();
+    if (!authStore.isConfigured() || !authStore.hasRecoveryEmail()) {
+      response.status(409).json({ code: "EMAIL_RECOVERY_NOT_AVAILABLE", error: "当前未绑定恢复邮箱。" });
+      return;
+    }
+    const rate = loginLimiter.status(`${request.ip}:recovery-email`);
+    if (!rate.allowed) {
+      response.set("Retry-After", String(rate.retryAfterSeconds));
+      response.status(429).json({ code: "RECOVERY_RATE_LIMIT", error: "请求次数过多，请稍后再试。" });
+      return;
+    }
+    const issued = recoveryCodes.issue(recoveryEmail);
+    try {
+      await mailer.sendRecoveryCode({ to: recoveryEmail, code: issued.code });
+    } catch {
+      recoveryCodes.clear(recoveryEmail);
+      loginLimiter.failure(`${request.ip}:recovery-email`);
+      response.status(503).json({ code: "EMAIL_DELIVERY_UNAVAILABLE", error: "验证码邮件暂时无法发送，请稍后重试。" });
+      return;
+    }
+    loginLimiter.success(`${request.ip}:recovery-email`);
+    response.json({ sent: true, expiresAt: new Date(issued.expiresAt).toISOString() });
   });
 
   app.post("/api/session/recover", async (request, response) => {
@@ -267,13 +301,18 @@ export async function createNexusApp(options = {}) {
       return;
     }
     if (!authStore.isConfigured() || !authStore.hasRecovery()) {
-      response.status(409).json({ code: "RECOVERY_NOT_AVAILABLE", error: "当前未配置密保问题。" });
+      response.status(409).json({ code: "RECOVERY_NOT_AVAILABLE", error: "当前未绑定恢复邮箱。" });
       return;
     }
 
     const recoveryAnswer = request.body?.recoveryAnswer;
+    const recoveryCode = request.body?.recoveryCode;
     const newPassword = request.body?.newPassword;
-    if (typeof recoveryAnswer !== "string" || !recoveryAnswer.trim()) {
+    if (authStore.hasRecoveryEmail() && (typeof recoveryCode !== "string" || !recoveryCode.trim())) {
+      response.status(400).json({ code: "RECOVERY_CODE_REQUIRED", error: "请输入邮箱验证码。" });
+      return;
+    }
+    if (!authStore.hasRecoveryEmail() && (typeof recoveryAnswer !== "string" || !recoveryAnswer.trim())) {
       response.status(400).json({ code: "RECOVERY_ANSWER_REQUIRED", error: "请输入密保答案。" });
       return;
     }
@@ -290,15 +329,19 @@ export async function createNexusApp(options = {}) {
       return;
     }
 
-    if (!authStore.verifyRecoveryAnswer(recoveryAnswer)) {
+    const recoveryValid = authStore.hasRecoveryEmail()
+      ? recoveryCodes.verify(authStore.getRecoveryEmail(), recoveryCode.toUpperCase())
+      : authStore.verifyRecoveryAnswer(recoveryAnswer);
+    if (!recoveryValid) {
       loginLimiter.failure(limiterKey);
-      response.status(401).json({ code: "INVALID_RECOVERY_ANSWER", error: "密保答案不正确。" });
+      response.status(401).json({ code: "INVALID_RECOVERY_CODE", error: "验证码或恢复凭证不正确。" });
       return;
     }
 
     const passwordHash = hashPassword(newPassword);
     await authStore.setCredentials({
-      passwordHash,
+        passwordHash,
+        recoveryEmail: authStore.getRecoveryEmail(),
       recoveryQuestion: authStore.getRecoveryQuestion(),
       recoveryAnswerHash: authStore.getRecoveryAnswerHash(),
     });
@@ -311,6 +354,8 @@ export async function createNexusApp(options = {}) {
       passwordRequired: true,
       setupRequired: false,
       recoveryRequired: true,
+      recoveryMode: authStore.hasRecoveryEmail() ? "email" : "question",
+      recoveryEmail: authStore.getRecoveryEmail(),
       recoveryQuestion: authStore.getRecoveryQuestion(),
       authenticated: true,
       expiresAt: new Date(session.expiresAt).toISOString(),

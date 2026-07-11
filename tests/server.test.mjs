@@ -8,7 +8,7 @@ import { createNexusApp } from "../server/app.mjs";
 
 const silentLogger = { error() {} };
 
-async function startFixture(t, { password = "" } = {}) {
+async function startFixture(t, { password = "", mailer } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), "nexus-server-"));
   const defaultPath = path.join(directory, "default.json");
   const configPath = path.join(directory, "data", "config.json");
@@ -20,6 +20,7 @@ async function startFixture(t, { password = "" } = {}) {
     configPath,
     dataDir: path.join(directory, "data"),
     password,
+    mailer,
     enableFrontend: false,
     eventOptions: { heartbeatMs: 50 },
     logger: silentLogger,
@@ -133,6 +134,8 @@ test("configuration API authenticates writes, validates input, persists, and bro
     setupRequired: false,
     passwordRequired: true,
     recoveryRequired: false,
+    recoveryMode: "",
+    recoveryEmail: "",
     recoveryQuestion: "",
     authenticated: true,
   });
@@ -233,6 +236,8 @@ test("an unconfigured server requires first-time password setup before configura
     setupRequired: true,
     passwordRequired: false,
     recoveryRequired: false,
+    recoveryMode: "",
+    recoveryEmail: "",
     recoveryQuestion: "",
     authenticated: false,
   });
@@ -248,37 +253,43 @@ test("an unconfigured server requires first-time password setup before configura
   assert.equal(response.status, 401);
 });
 
-test("first-time setup persists Chinese recovery details and allows a password reset", async (t) => {
-  const fixture = await startFixture(t);
-  const question = "我最喜欢的城市是哪里？";
-  const answer = "香港維多利亞港";
+test("first-time setup binds a recovery email and allows a verification-code password reset", async (t) => {
+  const sentCodes = [];
+  const fixture = await startFixture(t, { mailer: { sendRecoveryCode: async ({ code }) => sentCodes.push(code) } });
+  const recoveryEmail = "recover@example.com";
 
   const setup = await fetch(`${fixture.baseUrl}/api/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: "initial password", recoveryQuestion: question, recoveryAnswer: answer }),
+    body: JSON.stringify({ password: "initial password", recoveryEmail }),
   });
   assert.equal(setup.status, 200);
-  assert.equal((await setup.json()).recoveryQuestion, question);
+  assert.equal((await setup.json()).recoveryEmail, recoveryEmail);
 
   const status = await fetch(`${fixture.baseUrl}/api/session`);
   assert.deepEqual(await status.json(), {
     setupRequired: false,
     passwordRequired: true,
     recoveryRequired: true,
-    recoveryQuestion: question,
+    recoveryMode: "email",
+    recoveryEmail,
+    recoveryQuestion: "",
     authenticated: false,
   });
+
+  const requestCode = await fetch(`${fixture.baseUrl}/api/session/recovery-code`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  assert.equal(requestCode.status, 200);
+  assert.match(sentCodes[0], /^(?=.*[A-Z])(?=.*\d)[A-Z\d]{6}$/);
 
   const reset = await fetch(`${fixture.baseUrl}/api/session/recover`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ recoveryAnswer: answer.normalize("NFD"), newPassword: "new password" }),
+    body: JSON.stringify({ recoveryCode: sentCodes[0], newPassword: "new password" }),
   });
   assert.equal(reset.status, 200);
   const resetPayload = await reset.json();
   assert.equal(resetPayload.authenticated, true);
-  assert.equal(resetPayload.recoveryQuestion, question);
+  assert.equal(resetPayload.recoveryEmail, recoveryEmail);
 
   const login = await fetch(`${fixture.baseUrl}/api/session`, {
     method: "POST",

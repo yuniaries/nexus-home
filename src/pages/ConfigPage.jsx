@@ -303,17 +303,25 @@ function SecretField({ label, value, onChange, placeholder, visible, onToggle, a
   );
 }
 
-function AuthGate({ mode = "login", recoveryQuestion = "", canRecover = false, onAuthenticated }) {
+function maskRecoveryEmail(email) {
+  const [local = "", domain = ""] = String(email).split("@");
+  if (!local || !domain) return "已绑定的恢复邮箱";
+  return `${local.slice(0, 1)}${"*".repeat(Math.max(3, local.length - 1))}@${domain}`;
+}
+
+function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundRecoveryEmail = "", recoveryMode = "", canRecover = false, onAuthenticated }) {
   const [screen, setScreen] = useState(mode);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [recoveryPrompt, setRecoveryPrompt] = useState("");
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
   const [recoveryAnswer, setRecoveryAnswer] = useState("");
   const [confirmRecoveryAnswer, setConfirmRecoveryAnswer] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [visible, setVisible] = useState({ recoveryAnswer: true, confirmRecoveryAnswer: true });
   const [status, setStatus] = useState("idle");
+  const [codeStatus, setCodeStatus] = useState("idle");
   const toggle = (key) => setVisible((current) => ({ ...current, [key]: !current[key] }));
   const update = (setter) => (value) => { setter(value); setStatus("idle"); };
 
@@ -322,30 +330,33 @@ function AuthGate({ mode = "login", recoveryQuestion = "", canRecover = false, o
     setStatus("idle");
     setPassword("");
     setConfirmPassword("");
-    setRecoveryPrompt("");
+    setRecoveryEmail("");
+    setRecoveryCode("");
     setRecoveryAnswer("");
     setConfirmRecoveryAnswer("");
     setNewPassword("");
     setConfirmNewPassword("");
     setVisible({ recoveryAnswer: true, confirmRecoveryAnswer: true });
-  }, [mode, recoveryQuestion]);
+    setCodeStatus("idle");
+  }, [mode, recoveryQuestion, recoveryMode]);
 
   const isSetup = screen === "setup";
   const isRecover = screen === "recover";
   const recoveryAvailable = Boolean(recoveryQuestion.trim());
+  const usesEmailRecovery = recoveryMode === "email";
 
   const submit = async (event) => {
     event.preventDefault();
     if (isSetup && password !== confirmPassword) return setStatus("error");
-    if (isSetup && (!recoveryPrompt.trim() || !recoveryAnswer.trim() || recoveryAnswer !== confirmRecoveryAnswer)) return setStatus("error");
-    if (isRecover && (!recoveryAvailable || newPassword !== confirmNewPassword)) return setStatus("error");
+    if (isSetup && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail.trim())) return setStatus("error");
+    if (isRecover && ((!usesEmailRecovery && !recoveryAvailable) || (usesEmailRecovery && !recoveryCode.trim()) || newPassword !== confirmNewPassword)) return setStatus("error");
     setStatus("loading");
     try {
       const response = await fetch(isRecover ? "/api/session/recover" : "/api/session", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(isRecover ? { recoveryAnswer, newPassword } : isSetup ? { password, recoveryQuestion: recoveryPrompt, recoveryAnswer } : { password }),
+        body: JSON.stringify(isRecover ? (usesEmailRecovery ? { recoveryCode, newPassword } : { recoveryAnswer, newPassword }) : isSetup ? { password, recoveryEmail } : { password }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "认证失败");
@@ -353,6 +364,17 @@ function AuthGate({ mode = "login", recoveryQuestion = "", canRecover = false, o
       window.setTimeout(() => onAuthenticated(result), 280);
     } catch {
       setStatus("error");
+    }
+  };
+
+  const requestRecoveryCode = async () => {
+    setCodeStatus("loading");
+    try {
+      const response = await fetch("/api/session/recovery-code", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" });
+      if (!response.ok) throw new Error();
+      setCodeStatus("sent");
+    } catch {
+      setCodeStatus("error");
     }
   };
 
@@ -364,30 +386,36 @@ function AuthGate({ mode = "login", recoveryQuestion = "", canRecover = false, o
         <div className="login-emblem"><span><LockKeyhole size={28} /></span><i /><i /><i /></div>
         <span className="login-kicker"><ShieldCheck size={14} /> {isSetup ? "INITIALIZE CONFIG CHANNEL" : isRecover ? "PASSWORD RECOVERY" : "SECURE CONFIG CHANNEL"}</span>
         <h1>{isSetup ? "设置第一个管理密码" : isRecover ? "找回并重置密码" : "进入配置中枢"}</h1>
-        <p>{isSetup ? "这是第一次打开配置台，请先创建一个管理密码和密保问题。" : isRecover ? "回答已设置的密保问题后，你可以立刻重置新密码。" : "这个入口可以改变公开主页。请输入已设置的管理密码，建立一条安全会话。"}</p>
+        <p>{isSetup ? "这是第一次打开配置台，请先创建一个管理密码并绑定恢复邮箱。" : isRecover ? "请输入邮箱内显示的六码验证码，即可重置管理密码。" : "这个入口可以改变公开主页。请输入已设置的管理密码，建立一条安全会话。"}</p>
 
         {isRecover ? <>
-          <label className="login-field"><span>SECURITY QUESTION</span><div className="login-readonly"><ShieldCheck size={16} /><input lang="zh-CN" value={recoveryQuestion} readOnly /></div></label>
-          <SecretField label="RECOVERY ANSWER" value={recoveryAnswer} onChange={update(setRecoveryAnswer)} placeholder="输入密保答案" visible={visible.recoveryAnswer} onToggle={() => toggle("recoveryAnswer")} autoFocus invalid={status === "error"} autoComplete="off" allowChineseComposition />
+          {usesEmailRecovery ? <>
+            <p className="recovery-bound-email">您当前所绑定的邮箱是 <strong>{maskRecoveryEmail(boundRecoveryEmail)}</strong></p>
+            <label className="login-field"><span>RECOVERY CODE</span><div className={status === "error" ? "has-error" : ""}><KeyRound size={17} /><input autoFocus lang="en" inputMode="text" autoComplete="one-time-code" maxLength={6} value={recoveryCode} onChange={(event) => update(setRecoveryCode)(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="输入 6 位验证码" /></div></label>
+            <button className="login-link login-link--code" type="button" onClick={requestRecoveryCode} disabled={codeStatus === "loading"}>{codeStatus === "loading" ? "正在发送…" : "发送恢复验证码"}</button>
+            {codeStatus === "sent" && <p className="recovery-mail-notice">一封来自 no-reply@aries.edu.kg 的包含重置密码验证码的邮件已发送，此地址不受监控，请勿回复。</p>}
+            {codeStatus === "error" && <small className="login-error"><CircleAlert size={13} /> 验证码邮件发送失败，请稍后重试。</small>}
+          </> : <>
+            <label className="login-field"><span>SECURITY QUESTION</span><div className="login-readonly"><ShieldCheck size={16} /><input lang="zh-CN" value={recoveryQuestion} readOnly /></div></label>
+            <SecretField label="RECOVERY ANSWER" value={recoveryAnswer} onChange={update(setRecoveryAnswer)} placeholder="输入密保答案" visible={visible.recoveryAnswer} onToggle={() => toggle("recoveryAnswer")} autoFocus invalid={status === "error"} autoComplete="off" allowChineseComposition />
+          </>}
           <SecretField label="NEW PASSWORD" value={newPassword} onChange={update(setNewPassword)} placeholder="输入新密码" visible={visible.newPassword} onToggle={() => toggle("newPassword")} invalid={status === "error"} autoComplete="new-password" />
           <SecretField label="CONFIRM NEW PASSWORD" value={confirmNewPassword} onChange={update(setConfirmNewPassword)} placeholder="再次输入新密码" visible={visible.confirmNewPassword} onToggle={() => toggle("confirmNewPassword")} invalid={status === "error"} autoComplete="new-password" />
         </> : <>
           <SecretField label={isSetup ? "NEW PASSWORD" : "ACCESS KEY"} value={password} onChange={update(setPassword)} placeholder={isSetup ? "输入管理密码" : "输入管理密码"} visible={visible.password} onToggle={() => toggle("password")} autoFocus invalid={status === "error"} autoComplete={isSetup ? "new-password" : "current-password"} />
           {isSetup && <>
             <SecretField label="CONFIRM PASSWORD" value={confirmPassword} onChange={update(setConfirmPassword)} placeholder="再次输入密码确认" visible={visible.confirmPassword} onToggle={() => toggle("confirmPassword")} invalid={status === "error"} autoComplete="new-password" />
-            <label className="login-field"><span>SECURITY QUESTION</span><div className={status === "error" ? "has-error" : ""}><BadgeInfo size={17} /><input lang="zh-CN" inputMode="text" autoComplete="off" value={recoveryPrompt} onChange={(event) => update(setRecoveryPrompt)(event.target.value)} placeholder="例如：你最喜欢的城市？" /></div></label>
-            <SecretField label="SECURITY ANSWER" value={recoveryAnswer} onChange={update(setRecoveryAnswer)} placeholder="输入密保答案" visible={visible.recoveryAnswer} onToggle={() => toggle("recoveryAnswer")} invalid={status === "error"} autoComplete="off" allowChineseComposition />
-            <SecretField label="CONFIRM ANSWER" value={confirmRecoveryAnswer} onChange={update(setConfirmRecoveryAnswer)} placeholder="再次输入答案确认" visible={visible.confirmRecoveryAnswer} onToggle={() => toggle("confirmRecoveryAnswer")} invalid={status === "error"} autoComplete="off" allowChineseComposition />
+            <label className="login-field"><span>RECOVERY EMAIL</span><div className={status === "error" ? "has-error" : ""}><Mail size={17} /><input lang="en" inputMode="email" autoComplete="email" type="email" value={recoveryEmail} onChange={(event) => update(setRecoveryEmail)(event.target.value)} placeholder="绑定用于恢复密码的邮箱" /></div></label>
           </>}
         </>}
-        {status === "error" && <small className="login-error"><CircleAlert size={13} /> {isRecover ? "密保答案或新密码有误" : isSetup ? "请确认密码和密保信息" : "密码不正确，请重新确认"}</small>}
-        <button className="login-submit" type="submit" disabled={status === "loading" || (isRecover ? !recoveryAvailable || !recoveryAnswer || !newPassword || !confirmNewPassword : !password)}>
+        {status === "error" && <small className="login-error"><CircleAlert size={13} /> {isRecover ? "验证码或新密码有误" : isSetup ? "请确认密码与恢复邮箱" : "密码不正确，请重新确认"}</small>}
+        <button className="login-submit" type="submit" disabled={status === "loading" || (isRecover ? (usesEmailRecovery ? !recoveryCode || !newPassword || !confirmNewPassword : !recoveryAvailable || !recoveryAnswer || !newPassword || !confirmNewPassword) : !password)}>
           {status === "loading" ? <LoaderCircle className="spin" size={18} /> : status === "success" ? <Check size={18} /> : <ArrowRight size={18} />}
           <span>{status === "loading" ? (isSetup ? "正在创建" : isRecover ? "正在重置" : "正在验证") : status === "success" ? "通道已建立" : isSetup ? "创建密码" : isRecover ? "重置密码" : "解锁控制台"}</span>
         </button>
-        {!isSetup && !isRecover && canRecover && <button className="login-link" type="button" onClick={() => setScreen("recover")}>忘记密码？使用密保重置</button>}
+        {!isSetup && !isRecover && canRecover && <button className="login-link" type="button" onClick={() => setScreen("recover")}>忘记密码？使用邮箱验证码重置</button>}
         {(isRecover || isSetup) && <button className="login-link" type="button" onClick={() => setScreen("login")}>返回登录</button>}
-        <div className="login-foot"><span><i /> AES SESSION</span><span>{isSetup ? "PASSWORD + RECOVERY WILL BE STORED IN DATA DIR" : isRecover ? "RESETS PASSWORD AFTER ANSWER CHECK" : "PASSWORD STORED IN DATA DIR"}</span></div>
+        <div className="login-foot"><span><i /> AES SESSION</span><span>{isSetup ? "PASSWORD + RECOVERY EMAIL WILL BE STORED IN DATA DIR" : isRecover ? "RESETS PASSWORD AFTER EMAIL CODE CHECK" : "PASSWORD STORED IN DATA DIR"}</span></div>
       </form>
       <a className="login-back" href="/"><ArrowLeft size={15} /> 返回主页</a>
     </div>
@@ -723,7 +751,7 @@ export function ConfigPage() {
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState("idle");
-  const [auth, setAuth] = useState({ loading: true, required: false, setupRequired: false, recoveryRequired: false, recoveryQuestion: "", authenticated: false });
+  const [auth, setAuth] = useState({ loading: true, required: false, setupRequired: false, recoveryRequired: false, recoveryMode: "", recoveryEmail: "", recoveryQuestion: "", authenticated: false });
   const saveTimer = useRef(null);
   const latestDraft = useRef(draft);
   const previewRef = useRef(null);
@@ -740,10 +768,12 @@ export function ConfigPage() {
         const required = Boolean(data.passwordRequired ?? data.required);
         const setupRequired = Boolean(data.setupRequired);
         const recoveryRequired = Boolean(data.recoveryRequired);
+        const recoveryMode = typeof data.recoveryMode === "string" ? data.recoveryMode : "";
+        const recoveryEmail = typeof data.recoveryEmail === "string" ? data.recoveryEmail : "";
         const recoveryQuestion = typeof data.recoveryQuestion === "string" ? data.recoveryQuestion : "";
-        setAuth({ loading: false, required, setupRequired, recoveryRequired, recoveryQuestion, authenticated: Boolean(data.authenticated) });
+        setAuth({ loading: false, required, setupRequired, recoveryRequired, recoveryMode, recoveryEmail, recoveryQuestion, authenticated: Boolean(data.authenticated) });
       })
-      .catch(() => setAuth({ loading: false, required: true, setupRequired: false, recoveryRequired: false, recoveryQuestion: "", authenticated: false }));
+      .catch(() => setAuth({ loading: false, required: true, setupRequired: false, recoveryRequired: false, recoveryMode: "", recoveryEmail: "", recoveryQuestion: "", authenticated: false }));
   }, []);
 
   useEffect(() => {
@@ -917,8 +947,8 @@ export function ConfigPage() {
   }, [activeSection, draft, change, updateArray]);
 
   if (auth.loading) return <div className="config-loading"><div className="config-loader"><i /><i /><i /></div><span>ESTABLISHING CONFIG CHANNEL</span></div>;
-  if (auth.setupRequired) return <AuthGate mode="setup" onAuthenticated={(result) => setAuth((value) => ({ ...value, authenticated: true, setupRequired: false, required: true, recoveryRequired: true, recoveryQuestion: result?.recoveryQuestion || value.recoveryQuestion }))} />;
-  if (auth.required && !auth.authenticated) return <AuthGate mode="login" canRecover={auth.recoveryRequired} recoveryQuestion={auth.recoveryQuestion} onAuthenticated={(result) => setAuth((value) => ({ ...value, authenticated: true, recoveryRequired: Boolean(result?.recoveryRequired ?? value.recoveryRequired), recoveryQuestion: result?.recoveryQuestion || value.recoveryQuestion }))} />;
+  if (auth.setupRequired) return <AuthGate mode="setup" onAuthenticated={(result) => setAuth((value) => ({ ...value, authenticated: true, setupRequired: false, required: true, recoveryRequired: true, recoveryMode: result?.recoveryMode || "email", recoveryEmail: result?.recoveryEmail || value.recoveryEmail, recoveryQuestion: result?.recoveryQuestion || value.recoveryQuestion }))} />;
+  if (auth.required && !auth.authenticated) return <AuthGate mode="login" canRecover={auth.recoveryRequired} recoveryMode={auth.recoveryMode} recoveryEmail={auth.recoveryEmail} recoveryQuestion={auth.recoveryQuestion} onAuthenticated={(result) => setAuth((value) => ({ ...value, authenticated: true, recoveryRequired: Boolean(result?.recoveryRequired ?? value.recoveryRequired), recoveryMode: result?.recoveryMode || value.recoveryMode, recoveryEmail: result?.recoveryEmail || value.recoveryEmail, recoveryQuestion: result?.recoveryQuestion || value.recoveryQuestion }))} />;
 
   return (
     <div className="config-shell">
