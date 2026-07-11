@@ -40,21 +40,6 @@ docker run -d \
   -v nexus-home-data:/app/data \
   yuni020126/nexus-home:latest
   ```
-先创建本地环境文件：
-
-PowerShell：
-
-```powershell
-Copy-Item .env.example .env
-docker compose up -d --build
-```
-
-Bash：
-
-```bash
-cp .env.example .env
-docker compose up -d --build
-```
 
 首次打开 `/config` 时会先要求创建一个管理密码，创建后的哈希会写入服务端数据目录。后续访问都会要求这个密码。
 
