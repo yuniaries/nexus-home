@@ -10,11 +10,11 @@ services:
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
-      PORT: 8099
+      PORT: 21026
       DATA_DIR: /app/data
       TRUST_PROXY: ${TRUST_PROXY:-0}
     ports:
-      - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-8099}:8099"
+      - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-21026}:21026"
     volumes:
       - type: volume
         source: nexus-home-data
@@ -24,7 +24,7 @@ services:
         - CMD
         - node
         - -e
-        - "const port=process.env.PORT||8099;fetch('http://127.0.0.1:'+port+'/api/health').then((response)=>{if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        - "const port=process.env.PORT||21026;fetch('http://127.0.0.1:'+port+'/api/health').then((response)=>{if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       start_period: 15s

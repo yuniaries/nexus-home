@@ -5,7 +5,7 @@ import { createNexusApp } from "./app.mjs";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const host = process.env.HOST?.trim() || "0.0.0.0";
-const requestedPort = Number(process.env.PORT ?? 8099);
+const requestedPort = Number(process.env.PORT ?? 21026);
 
 if (!Number.isInteger(requestedPort) || requestedPort < 0 || requestedPort > 65_535) {
   throw new Error("PORT must be an integer between 0 and 65535.");

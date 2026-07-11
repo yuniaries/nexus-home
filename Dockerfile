@@ -18,7 +18,7 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
-    PORT=8099 \
+    PORT=21026 \
   DATA_DIR=/app/data
 
 WORKDIR /app
@@ -33,10 +33,10 @@ COPY --from=build --chown=node:node /app/dist ./dist
 
 USER node
 
-EXPOSE 8099
+EXPOSE 21026
 VOLUME ["/app/data"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD ["node", "-e", "const port=process.env.PORT||8099;fetch('http://127.0.0.1:'+port+'/api/health').then((response)=>{if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+  CMD ["node", "-e", "const port=process.env.PORT||21026;fetch('http://127.0.0.1:'+port+'/api/health').then((response)=>{if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))"]
 
 CMD ["node", "server/index.mjs"]
