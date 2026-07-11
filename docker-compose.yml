@@ -1,0 +1,43 @@
+services:
+  nexus-home:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${IMAGE_NAME:-nexus-home:local}
+    container_name: nexus-home
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8099
+      DATA_DIR: /app/data
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+    ports:
+      - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-8099}:8099"
+    volumes:
+      - type: volume
+        source: nexus-home-data
+        target: /app/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "const port=process.env.PORT||8099;fetch('http://127.0.0.1:'+port+'/api/health').then((response)=>{if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 10s
+
+volumes:
+  nexus-home-data:
+    name: ${DATA_VOLUME:-nexus-home-data}

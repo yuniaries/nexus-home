@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "updatedAt": "2026-07-10T00:00:00.000Z",
+  "identity": {
+    "brand": "YUNI // NEXUS",
+    "kicker": "PERSONAL OPERATING SYSTEM / 2026",
+    "name": "YUNI",
+    "role": "数字体验构筑者",
+    "tagline": "把灵感连接成系统，让每一次探索都有回响。",
+    "description": "游走于产品、设计与代码之间，构建有温度的数字体验。这里是我的实时坐标，也是通往每个新世界的入口。",
+    "location": "Hong Kong · UTC+8",
+    "availability": "OPEN TO BUILD",
+    "avatarText": "YN",
+    "heroBadge": "NEXUS ONLINE",
+    "quote": "真正迷人的未来，不是被预测出来的，而是被一点点构建出来的。",
+    "email": "hello@example.com"
+  },
+  "theme": {
+    "preset": "abyss",
+    "primary": "#63f3ff",
+    "secondary": "#8b7cff",
+    "accent": "#54f7a8",
+    "background": "#050814",
+    "surface": "#10182b",
+    "text": "#f4f8ff",
+    "muted": "#93a4be",
+    "glassOpacity": 0.52,
+    "blur": 24,
+    "radius": 26,
+    "glow": 0.72
+  },
+  "effects": {
+    "motion": true,
+    "ocean": true,
+    "ripples": true,
+    "particles": true,
+    "grid": true,
+    "pointerGlow": true,
+    "waveIntensity": 0.72,
+    "particleDensity": 0.65,
+    "motionSpeed": 1
+  },
+  "layout": {
+    "density": "rich",
+    "showClock": true,
+    "showMetrics": true,
+    "showCapabilities": true,
+    "showProjects": true,
+    "showActivity": true,
+    "showQuote": true
+  },
+  "metrics": [
+    {
+      "id": "metric-1",
+      "label": "活跃项目",
+      "value": "12",
+      "suffix": "",
+      "trend": "+3 this season"
+    },
+    {
+      "id": "metric-2",
+      "label": "构建节点",
+      "value": "2.4",
+      "suffix": "K",
+      "trend": "98.7% stable"
+    },
+    {
+      "id": "metric-3",
+      "label": "在线时长",
+      "value": "860",
+      "suffix": "D",
+      "trend": "continuous"
+    },
+    {
+      "id": "metric-4",
+      "label": "探索指数",
+      "value": "94",
+      "suffix": "%",
+      "trend": "rising"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "cap-1",
+      "label": "Product Systems",
+      "value": 92,
+      "color": "#63f3ff"
+    },
+    {
+      "id": "cap-2",
+      "label": "Creative Engineering",
+      "value": 86,
+      "color": "#8b7cff"
+    },
+    {
+      "id": "cap-3",
+      "label": "Visual Direction",
+      "value": 89,
+      "color": "#54f7a8"
+    },
+    {
+      "id": "cap-4",
+      "label": "Applied AI",
+      "value": 81,
+      "color": "#ff78d1"
+    }
+  ],
+  "projects": [
+    {
+      "id": "project-astra",
+      "index": "01",
+      "title": "ASTRA CONSOLE",
+      "description": "面向复杂工作流的智能指挥台，把数据、自动化与决策压缩进一块清晰界面。",
+      "url": "#",
+      "status": "LIVE",
+      "tags": [
+        "AI",
+        "SYSTEM",
+        "PRODUCT"
+      ],
+      "color": "#63f3ff",
+      "featured": true
+    },
+    {
+      "id": "project-tidal",
+      "index": "02",
+      "title": "TIDAL INTELLIGENCE",
+      "description": "从持续变化的信息流里识别信号，形成有节奏、可解释的洞察网络。",
+      "url": "#",
+      "status": "BETA",
+      "tags": [
+        "DATA",
+        "RESEARCH"
+      ],
+      "color": "#8b7cff",
+      "featured": false
+    },
+    {
+      "id": "project-lumen",
+      "index": "03",
+      "title": "LUMEN ARCHIVE",
+      "description": "为灵感建立坐标，让碎片化知识在时间中自动连接、重新发光。",
+      "url": "#",
+      "status": "LAB",
+      "tags": [
+        "KNOWLEDGE",
+        "DESIGN"
+      ],
+      "color": "#54f7a8",
+      "featured": false
+    },
+    {
+      "id": "project-vector",
+      "index": "04",
+      "title": "VECTOR RELAY",
+      "description": "轻量的数字服务中继层，为每一次跨平台协作提供稳定而漂亮的连接。",
+      "url": "#",
+      "status": "CONCEPT",
+      "tags": [
+        "CLOUD",
+        "TOOLS"
+      ],
+      "color": "#ff78d1",
+      "featured": false
+    }
+  ],
+  "links": [
+    {
+      "id": "link-github",
+      "label": "GitHub",
+      "description": "Code & experiments",
+      "url": "https://github.com/yuniaries",
+      "icon": "github"
+    },
+    {
+      "id": "link-notes",
+      "label": "Field Notes",
+      "description": "Ideas in progress",
+      "url": "#",
+      "icon": "notebook"
+    },
+    {
+      "id": "link-mail",
+      "label": "Say Hello",
+      "description": "Start a conversation",
+      "url": "mailto:hello@example.com",
+      "icon": "mail"
+    }
+  ],
+  "activity": {
+    "label": "BUILD FREQUENCY",
+    "activeDays": 186,
+    "streak": 24,
+    "signal": 87
+  },
+  "ticker": [
+    "INTERFACE SYSTEMS",
+    "CREATIVE CODE",
+    "HUMAN + AI",
+    "PRODUCT THINKING",
+    "DIGITAL CRAFT",
+    "OPEN TO COLLABORATE"
+  ]
+}
