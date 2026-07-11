@@ -234,9 +234,17 @@ function ColorField({ label, value, onChange }) {
     <label className="field color-field">
       <span className="field__label">{label}</span>
       <span className="color-control">
-        <input type="color" value={value} onChange={(event) => onChange(event.target.value)} aria-label={`${label}颜色选择器`} />
-        <i style={{ background: value }} />
-        <input value={value} onChange={(event) => onChange(event.target.value)} maxLength={9} />
+        <span className="color-swatch" style={{ "--swatch-color": value }}>
+          <input
+            type="color"
+            value={value}
+            onInput={(event) => onChange(event.currentTarget.value)}
+            onChange={(event) => onChange(event.currentTarget.value)}
+            aria-label={`${label}颜色选择器`}
+          />
+          <i aria-hidden="true" />
+        </span>
+        <input className="color-control__value" value={value} onChange={(event) => onChange(event.target.value)} maxLength={9} aria-label={`${label}颜色值`} />
       </span>
     </label>
   );
@@ -515,8 +523,9 @@ function AppearanceEditor({ draft, change, applyPalette }) {
       </PanelBlock>
       <PanelBlock title="主页主按钮" note="Primary action" icon={Zap}>
         <div className="field-grid field-grid--colors">
-          <ColorField label="按钮起始色" value={draft.theme.primary} onChange={(value) => change("theme.primary", value)} />
-          <ColorField label="按钮结束色" value={draft.theme.accent} onChange={(value) => change("theme.accent", value)} />
+          <ColorField label="按钮起始色" value={draft.theme.buttonStart} onChange={(value) => change("theme.buttonStart", value)} />
+          <ColorField label="按钮结束色" value={draft.theme.buttonEnd} onChange={(value) => change("theme.buttonEnd", value)} />
+          <ColorField label="按钮文字 / 图标色（仅主按钮）" value={draft.theme.buttonText} onChange={(value) => change("theme.buttonText", value)} />
         </div>
       </PanelBlock>
       <PanelBlock title="玻璃材质" note="Glass material" icon={Layers3}>

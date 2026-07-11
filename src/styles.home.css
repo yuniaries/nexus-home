@@ -479,11 +479,11 @@
   gap: 22px;
   overflow: hidden;
   padding: 0 22px;
-  border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--button-start) 45%, transparent);
   border-radius: 16px;
-  color: #031017;
-  background: linear-gradient(115deg, color-mix(in srgb, var(--primary) 90%, white), color-mix(in srgb, var(--accent) 78%, var(--primary)));
-  box-shadow: 0 14px 38px color-mix(in srgb, var(--primary) 16%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  color: var(--button-text);
+  background: linear-gradient(115deg, color-mix(in srgb, var(--button-start) 90%, white), color-mix(in srgb, var(--button-end) 78%, var(--button-start)));
+  box-shadow: 0 14px 38px color-mix(in srgb, var(--button-start) 16%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.55);
   font-size: 0.8rem;
   font-weight: 780;
   line-height: 1;
@@ -506,7 +506,7 @@
 
 .primary-action:hover,
 .primary-action:focus-visible {
-  box-shadow: 0 18px 50px color-mix(in srgb, var(--primary) 25%, transparent), 0 0 28px color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: 0 18px 50px color-mix(in srgb, var(--button-start) 25%, transparent), 0 0 28px color-mix(in srgb, var(--button-end) 12%, transparent);
   transform: translateY(-3px);
 }
 
@@ -515,7 +515,7 @@
   transform: rotate(24deg) translateX(620%);
 }
 
-.primary-action > * { position: relative; }
+.primary-action > * { position: relative; color: inherit; }
 
 .magnetic-action svg {
   transition: transform 260ms cubic-bezier(.2,.8,.2,1);

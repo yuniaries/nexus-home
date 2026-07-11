@@ -126,6 +126,13 @@ function OrbitPortrait({ config }) {
 }
 
 function Hero({ config, now }) {
+  const actionStyle = {
+    "--button-start": config.theme.buttonStart,
+    "--button-end": config.theme.buttonEnd,
+    "--button-text": config.theme.buttonText,
+    color: config.theme.buttonText,
+  };
+
   return (
     <section id="origin" className="hero section-shell">
       <div className="hero-grid">
@@ -143,7 +150,7 @@ function Hero({ config, now }) {
           <p className="hero-description reveal-up reveal-delay-3">{config.identity.description}</p>
 
           <div className="hero-actions reveal-up reveal-delay-4">
-            <a className="primary-action magnetic-action" href="#projects">
+            <a className="primary-action magnetic-action" href="#projects" style={actionStyle}>
               <span>进入作品轨道</span><ArrowDownRight size={18} />
             </a>
             <a className="text-action" href={`mailto:${config.identity.email}`}>
@@ -346,6 +353,13 @@ function LinkIcon({ icon }) {
 }
 
 function Contact({ config }) {
+  const actionStyle = {
+    "--button-start": config.theme.buttonStart,
+    "--button-end": config.theme.buttonEnd,
+    "--button-text": config.theme.buttonText,
+    color: config.theme.buttonText,
+  };
+
   return (
     <section id="contact" className="contact-section section-shell">
       <GlassCard className="contact-core">
@@ -354,7 +368,7 @@ function Contact({ config }) {
           <SignalMark label="CHANNEL OPEN" />
           <h2>让下一次<br /><em>好奇心碰撞</em>发生。</h2>
           {config.layout.showQuote && <p>{config.identity.quote}</p>}
-          <a className="primary-action" href={`mailto:${config.identity.email}`}>
+          <a className="primary-action" href={`mailto:${config.identity.email}`} style={actionStyle}>
             <span>发送第一束信号</span><Mail size={18} />
           </a>
         </div>
@@ -498,6 +512,9 @@ export function HomePage() {
     "--primary": config.theme.primary,
     "--secondary": config.theme.secondary,
     "--accent": config.theme.accent,
+    "--button-start": config.theme.buttonStart,
+    "--button-end": config.theme.buttonEnd,
+    "--button-text": config.theme.buttonText,
     "--background": config.theme.background,
     "--surface": config.theme.surface,
     "--text": config.theme.text,

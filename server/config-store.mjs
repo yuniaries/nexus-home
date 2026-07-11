@@ -102,7 +102,16 @@ export class ConfigStore {
       let stored;
 
       try {
-        stored = validateConfig(await readJsonFile(this.configPath));
+        const rawStored = await readJsonFile(this.configPath);
+        stored = validateConfig({
+          ...fallback,
+          ...rawStored,
+          identity: { ...fallback.identity, ...rawStored.identity },
+          theme: { ...fallback.theme, ...rawStored.theme },
+          effects: { ...fallback.effects, ...rawStored.effects },
+          layout: { ...fallback.layout, ...rawStored.layout },
+          activity: { ...fallback.activity, ...rawStored.activity },
+        });
       } catch (error) {
         if (error.code !== "ENOENT") throw error;
         stored = fallback;
