@@ -45,7 +45,7 @@ RECOVERY_EMAIL_FROM='someone@example.com'
 
 `.env` 只保存在运行服务器上，并已由 `.gitignore` 排除；提交 GitHub 的是 `.env.example`，其中只放字段名与示例值。
 
-实例env文件
+示例env文件
 
 <img width="1138" height="1085" alt="image" src="https://github.com/user-attachments/assets/1da72c93-4ae2-4cb5-ab59-c3ace75717df" />
 
