@@ -28,36 +28,15 @@ npm run build
 npm start
 ```
 
-## 环境变量
-
-仓库不包含 `nexus-home.env`，也不包含任何密码、哈希或 API Key。克隆项目后，从 `.env.example` 复制一份并命名为 `nexus-home.env`：
-
-```powershell
-Copy-Item .env.example nexus-home.env
-```
-
-填写邮件恢复服务：可用Resend
-
-```dotenv
-RESEND_API_KEY='re_你的发送权限密钥'
-RECOVERY_EMAIL_FROM='someone@example.com'
-```
-
-`nexus-home.env` 只保存在运行服务器上，并已由 `.gitignore` 排除；提交 GitHub 的是 `.env.example`，其中只放字段名与示例值。
-
-示例nexus-home.env文件
-
-![alt text](image.png)
-
-
-
-## 配置台认证
+## 配置台认证与密码恢复
 
 首次打开 `/config` 时，页面会要求设置管理员密码并绑定恢复邮箱。
 
-后续访问需要管理员密码。点击“使用邮箱验证码重置”后，系统会将六位包含字母数字验证码发送到已绑定邮箱；验证码有效期为 10 分钟，单个验证码最多校验 5 次。
+后续访问需要管理员密码。忘记密码时，点击“发送恢复验证码”，系统会通过 NEXUS 密码恢复服务将六位字母数字验证码发送到已绑定的恢复邮箱。验证码有效期为 10 分钟，单个验证码最多校验 5 次；同一邮箱 60 秒内只能请求一次。
 
-邮件来自 `RECOVERY_EMAIL_FROM` 指定的发件地址，正文格式为：
+部署 NEXUS HOME 不需要配置 Resend、SMTP 或邮件 API Key。邮件恢复服务由 NEXUS 中央邮件节点处理，发件密钥不会包含在 Docker 镜像或站点容器中。
+
+验证码正文格式：
 
 ```text
 您本次的恢复验证码为XXXXXX
@@ -83,7 +62,7 @@ RECOVERY_EMAIL_FROM='someone@example.com'
 }
 ```
 
-`auth.json` 与 `.env` 都属于服务器私有文件，不进入前端、不上传 GitHub。
+`auth.json` 属于服务器私有文件，不进入前端、不上传 GitHub。
 
 ## 数据文件
 
@@ -98,25 +77,31 @@ RECOVERY_EMAIL_FROM='someone@example.com'
 
 ```bash
 docker pull yuni020126/nexus-home:latest
-docker run -d --name nexus-home --restart unless-stopped --env-file /root/nexus-home.env -p 21026:21026 -v nexus-home-data:/app/data yuni020126/nexus-home:latest
+docker rm -f nexus-home
+docker run -d \
+  --name nexus-home \
+  --restart unless-stopped \
+  -e TRUST_PROXY=1 \
+  -p 21026:21026 \
+  -v nexus-home-data:/app/data \
+  yuni020126/nexus-home:latest
 ```
 
-Compose：
+`nexus-home-data` 是持久化数据卷，保存主页配置、管理员密码哈希和恢复邮箱。更新容器时不要删除该数据卷。
+
+如果你使用 1Panel、Nginx、Cloudflare 等方式把域名转发到容器，请保留 `-e TRUST_PROXY=1`。如果只是直接通过 `IP:21026` 访问，请删除这一整行。
+
+## Compose
 
 ```bash
+# 构建镜像并在后台启动服务；首次部署或修改代码后使用。
 docker compose up -d --build
+
+# 实时查看容器运行日志；按 Ctrl + C 退出日志查看，不会停止容器。
 docker compose logs -f nexus-home
+
+# 停止并删除 Compose 创建的容器；不会删除 nexus-home-data 数据卷。
 docker compose down
-```
-
-容器部署时，将 `RESEND_API_KEY` 和 `RECOVERY_EMAIL_FROM` 作为运行环境变量注入容器。
-
-## HTTPS 与代理
-
-位于 HTTPS 反向代理之后时，在运行环境中设置：
-
-```dotenv
-TRUST_PROXY=1
 ```
 
 ## 备份

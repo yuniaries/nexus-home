@@ -1,26 +1,36 @@
+# Compose 服务列表。
 services:
+  # 主页与配置台服务。
   nexus-home:
+    # 使用当前目录的 Dockerfile 构建镜像。
     build:
       context: .
       dockerfile: Dockerfile
+    # 本地构建镜像的名称；可通过 IMAGE_NAME 覆盖。
     image: ${IMAGE_NAME:-nexus-home:local}
+    # 容器名称，便于使用 docker logs / docker restart 管理。
     container_name: nexus-home
+    # Docker 重启或服务器重启后自动恢复服务。
     restart: unless-stopped
+    # 以 init 进程运行，正确回收子进程。
     init: true
+    # 容器内部运行环境。
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 21026
       DATA_DIR: /app/data
+      # 仅在 HTTPS 反向代理（如 1Panel、Nginx、Cloudflare）之后设置为 1。
       TRUST_PROXY: ${TRUST_PROXY:-0}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-      RECOVERY_EMAIL_FROM: ${RECOVERY_EMAIL_FROM:-no-reply@aries.edu.kg}
+    # 宿主机端口:容器端口；默认浏览器访问 21026。
     ports:
       - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-21026}:21026"
+    # 将站点配置、管理员认证和恢复邮箱持久化到命名卷。
     volumes:
       - type: volume
         source: nexus-home-data
         target: /app/data
+    # Docker 定时检查服务是否仍可响应。
     healthcheck:
       test:
         - CMD
@@ -31,15 +41,21 @@ services:
       timeout: 5s
       start_period: 15s
       retries: 3
+    # 除数据卷与 /tmp 外，容器文件系统保持只读。
     read_only: true
+    # 提供可写的临时目录，不会持久化。
     tmpfs:
       - /tmp:size=32m,mode=1777
+    # 限制容器权限。
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # 收到停止命令后最多等待 10 秒完成退出。
     stop_grace_period: 10s
 
+# 命名卷列表；删除容器不会删除其中的数据。
 volumes:
   nexus-home-data:
+    # 可通过 DATA_VOLUME 指定其他卷名。
     name: ${DATA_VOLUME:-nexus-home-data}
