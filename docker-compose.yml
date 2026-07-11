@@ -13,6 +13,8 @@ services:
       PORT: 21026
       DATA_DIR: /app/data
       TRUST_PROXY: ${TRUST_PROXY:-0}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RECOVERY_EMAIL_FROM: ${RECOVERY_EMAIL_FROM:-no-reply@aries.edu.kg}
     ports:
       - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-21026}:21026"
     volumes:

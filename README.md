@@ -92,7 +92,7 @@ RECOVERY_EMAIL_FROM='no-reply@你的域名'
 
 ```bash
 docker pull yuni020126/nexus-home:latest
-docker run -d --name nexus-home --restart unless-stopped -p 21026:21026 -v nexus-home-data:/app/data yuni020126/nexus-home:latest
+docker run -d --name nexus-home --restart unless-stopped --env-file .env -p 21026:21026 -v nexus-home-data:/app/data yuni020126/nexus-home:latest
 ```
 
 Compose：
