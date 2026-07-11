@@ -32,7 +32,14 @@ npm start
 ```
 
 ## Docker Compose
-
+```docker pull yuni020126/nexus-home:latest
+docker run -d \
+  --name nexus-home \
+  --restart unless-stopped \
+  -p 21026:8099 \
+  -v nexus-home-data:/app/data \
+  yuni020126/nexus-home:latest
+  ```
 先创建本地环境文件：
 
 PowerShell：
