@@ -322,6 +322,8 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
   const [visible, setVisible] = useState({ recoveryAnswer: true, confirmRecoveryAnswer: true });
   const [status, setStatus] = useState("idle");
   const [codeStatus, setCodeStatus] = useState("idle");
+  const [codeError, setCodeError] = useState("");
+  const [cooldown, setCooldown] = useState(0);
   const toggle = (key) => setVisible((current) => ({ ...current, [key]: !current[key] }));
   const update = (setter) => (value) => { setter(value); setStatus("idle"); };
 
@@ -338,6 +340,8 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
     setConfirmNewPassword("");
     setVisible({ recoveryAnswer: true, confirmRecoveryAnswer: true });
     setCodeStatus("idle");
+    setCodeError("");
+    setCooldown(0);
   }, [mode, recoveryQuestion, recoveryMode]);
 
   const isSetup = screen === "setup";
@@ -369,14 +373,27 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
 
   const requestRecoveryCode = async () => {
     setCodeStatus("loading");
+    setCodeError("");
     try {
       const response = await fetch("/api/session/recovery-code", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" });
-      if (!response.ok) throw new Error();
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (Number.isInteger(result.retryAfterSeconds)) setCooldown(result.retryAfterSeconds);
+        throw new Error(result.error || "验证码邮件发送失败，请稍后重试。");
+      }
       setCodeStatus("sent");
-    } catch {
+      setCooldown(60);
+    } catch (error) {
       setCodeStatus("error");
+      setCodeError(error.message || "验证码邮件发送失败，请稍后重试。");
     }
   };
+
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const timer = window.setInterval(() => setCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
 
   return (
     <div className="login-shell">
@@ -392,9 +409,9 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
           {usesEmailRecovery ? <>
             <p className="recovery-bound-email">您当前所绑定的邮箱是 <strong>{maskRecoveryEmail(boundRecoveryEmail)}</strong></p>
             <label className="login-field"><span>RECOVERY CODE</span><div className={status === "error" ? "has-error" : ""}><KeyRound size={17} /><input autoFocus lang="en" inputMode="text" autoComplete="one-time-code" maxLength={6} value={recoveryCode} onChange={(event) => update(setRecoveryCode)(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="输入 6 位验证码" /></div></label>
-            <button className="login-link login-link--code" type="button" onClick={requestRecoveryCode} disabled={codeStatus === "loading"}>{codeStatus === "loading" ? "正在发送…" : "发送恢复验证码"}</button>
+            <button className="login-link login-link--code" type="button" onClick={requestRecoveryCode} disabled={codeStatus === "loading" || cooldown > 0}>{codeStatus === "loading" ? "正在发送…" : cooldown > 0 ? `${cooldown} 秒后可重新发送` : "发送恢复验证码"}</button>
             {codeStatus === "sent" && <p className="recovery-mail-notice">一封来自 no-reply@aries.edu.kg 的包含重置密码验证码的邮件已发送，此地址不受监控，请勿回复。</p>}
-            {codeStatus === "error" && <small className="login-error"><CircleAlert size={13} /> 验证码邮件发送失败，请稍后重试。</small>}
+            {codeStatus === "error" && <small className="login-error"><CircleAlert size={13} /> {codeError}</small>}
           </> : <>
             <label className="login-field"><span>SECURITY QUESTION</span><div className="login-readonly"><ShieldCheck size={16} /><input lang="zh-CN" value={recoveryQuestion} readOnly /></div></label>
             <SecretField label="RECOVERY ANSWER" value={recoveryAnswer} onChange={update(setRecoveryAnswer)} placeholder="输入密保答案" visible={visible.recoveryAnswer} onToggle={() => toggle("recoveryAnswer")} autoFocus invalid={status === "error"} autoComplete="off" allowChineseComposition />
@@ -420,6 +437,24 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
       <a className="login-back" href="/"><ArrowLeft size={15} /> 返回主页</a>
     </div>
   );
+}
+
+function RecoveryEmailDialog({ currentEmail, onClose, onSaved }) {
+  const [email, setEmail] = useState(currentEmail || "");
+  const [status, setStatus] = useState("idle");
+  const submit = async (event) => {
+    event.preventDefault();
+    setStatus("saving");
+    try {
+      const response = await fetch("/api/session/recovery-email", { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recoveryEmail: email }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "保存失败。");
+      onSaved(result.recoveryEmail);
+    } catch {
+      setStatus("error");
+    }
+  };
+  return <div className="recovery-email-modal" role="dialog" aria-modal="true" aria-label="修改恢复邮箱"><form onSubmit={submit}><button type="button" className="modal-close" onClick={onClose}><X size={17} /></button><span className="login-kicker"><Mail size={14} /> RECOVERY EMAIL</span><h2>修改恢复邮箱</h2><p>验证码将发送到新的邮箱地址。</p><label className="login-field"><span>NEW RECOVERY EMAIL</span><div className={status === "error" ? "has-error" : ""}><Mail size={17} /><input autoFocus type="email" lang="en" inputMode="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setStatus("idle"); }} placeholder="输入新的恢复邮箱" /></div></label>{status === "error" && <small className="login-error"><CircleAlert size={13} /> 邮箱格式无效或保存失败。</small>}<button className="login-submit" disabled={status === "saving" || !email.trim()}>{status === "saving" ? "正在保存…" : "保存恢复邮箱"}</button></form></div>;
 }
 
 function IdentityEditor({ draft, change }) {
@@ -752,6 +787,7 @@ export function ConfigPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState("idle");
   const [auth, setAuth] = useState({ loading: true, required: false, setupRequired: false, recoveryRequired: false, recoveryMode: "", recoveryEmail: "", recoveryQuestion: "", authenticated: false });
+  const [recoveryEmailOpen, setRecoveryEmailOpen] = useState(false);
   const saveTimer = useRef(null);
   const latestDraft = useRef(draft);
   const previewRef = useRef(null);
@@ -958,6 +994,7 @@ export function ConfigPage() {
         <div className="config-header__actions">
           <SaveIndicator status={saveStatus} revision={draft.revision} />
           <a href="/" target="_blank"><Eye size={15} /><span>查看主页</span></a>
+          {auth.required && <button type="button" onClick={() => setRecoveryEmailOpen(true)}><Mail size={15} /><span>恢复邮箱</span></button>}
           {auth.required && <button type="button" onClick={logout} aria-label="退出配置会话"><LogOut size={15} /></button>}
         </div>
       </header>
@@ -985,6 +1022,7 @@ export function ConfigPage() {
 
         {previewCollapsed ? <button className="preview-restore" type="button" onClick={() => setPreviewCollapsed(false)}><PanelRight size={17} /><span>打开实时预览</span><i /></button> : <PreviewPane draft={draft} device={device} setDevice={setDevice} previewRef={previewRef} collapsed={previewCollapsed} setCollapsed={setPreviewCollapsed} />}
       </div>
+      {recoveryEmailOpen && <RecoveryEmailDialog currentEmail={auth.recoveryEmail} onClose={() => setRecoveryEmailOpen(false)} onSaved={(recoveryEmail) => { setAuth((value) => ({ ...value, recoveryEmail })); setRecoveryEmailOpen(false); }} />}
     </div>
   );
 }

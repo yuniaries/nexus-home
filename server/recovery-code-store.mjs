@@ -15,17 +15,25 @@ function newCode() {
 }
 
 export class RecoveryCodeStore {
-  constructor({ ttlMs = 10 * 60 * 1000, maxAttempts = 5, clock = () => Date.now() } = {}) {
+  constructor({ ttlMs = 10 * 60 * 1000, cooldownMs = 60 * 1000, maxAttempts = 5, clock = () => Date.now() } = {}) {
     this.ttlMs = ttlMs;
+    this.cooldownMs = cooldownMs;
     this.maxAttempts = maxAttempts;
     this.clock = clock;
     this.entries = new Map();
   }
 
+  status(email) {
+    const entry = this.entries.get(email.toLowerCase());
+    const remainingMs = Math.max(0, (entry?.lastIssuedAt ?? 0) + this.cooldownMs - this.clock());
+    return { allowed: remainingMs === 0, retryAfterSeconds: Math.ceil(remainingMs / 1000) };
+  }
+
   issue(email) {
     const code = newCode();
-    this.entries.set(email.toLowerCase(), { hash: digest(code), expiresAt: this.clock() + this.ttlMs, attempts: 0 });
-    return { code, expiresAt: this.clock() + this.ttlMs };
+    const now = this.clock();
+    this.entries.set(email.toLowerCase(), { hash: digest(code), expiresAt: now + this.ttlMs, lastIssuedAt: now, attempts: 0 });
+    return { code, expiresAt: now + this.ttlMs };
   }
 
   verify(email, code) {

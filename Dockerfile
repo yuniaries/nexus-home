@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
+ARG BUILDPLATFORM
 
-FROM node:22-alpine AS dependencies
+FROM --platform=$BUILDPLATFORM node:22-alpine AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund

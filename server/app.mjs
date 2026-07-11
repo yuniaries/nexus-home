@@ -272,10 +272,20 @@ export async function createNexusApp(options = {}) {
       response.status(409).json({ code: "EMAIL_RECOVERY_NOT_AVAILABLE", error: "当前未绑定恢复邮箱。" });
       return;
     }
+    if (mailer.configured === false) {
+      response.status(503).json({ code: "EMAIL_SERVICE_NOT_CONFIGURED", error: "邮件服务未配置，请在容器环境变量中设置 RESEND_API_KEY 与 RECOVERY_EMAIL_FROM。" });
+      return;
+    }
     const rate = loginLimiter.status(`${request.ip}:recovery-email`);
     if (!rate.allowed) {
       response.set("Retry-After", String(rate.retryAfterSeconds));
       response.status(429).json({ code: "RECOVERY_RATE_LIMIT", error: "请求次数过多，请稍后再试。" });
+      return;
+    }
+    const cooldown = recoveryCodes.status(recoveryEmail);
+    if (!cooldown.allowed) {
+      response.set("Retry-After", String(cooldown.retryAfterSeconds));
+      response.status(429).json({ code: "RECOVERY_COOLDOWN", error: `请在 ${cooldown.retryAfterSeconds} 秒后重新发送。`, retryAfterSeconds: cooldown.retryAfterSeconds });
       return;
     }
     const issued = recoveryCodes.issue(recoveryEmail);
@@ -289,6 +299,26 @@ export async function createNexusApp(options = {}) {
     }
     loginLimiter.success(`${request.ip}:recovery-email`);
     response.json({ sent: true, expiresAt: new Date(issued.expiresAt).toISOString() });
+  });
+
+  app.put("/api/session/recovery-email", async (request, response) => {
+    if (!sessions.authenticate(request)) {
+      response.status(401).json({ code: "AUTH_REQUIRED", error: "请先登录配置台。" });
+      return;
+    }
+    if (!isSameOrigin(request)) {
+      response.status(403).json({ code: "ORIGIN_MISMATCH", error: "请求来源不受信任。" });
+      return;
+    }
+    const recoveryEmail = request.body?.recoveryEmail;
+    if (typeof recoveryEmail !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail.trim())) {
+      response.status(400).json({ code: "RECOVERY_EMAIL_REQUIRED", error: "请输入有效的恢复邮箱。" });
+      return;
+    }
+    const previousRecoveryEmail = authStore.getRecoveryEmail();
+    await authStore.setCredentials({ passwordHash: authStore.getPasswordHash(), recoveryEmail });
+    recoveryCodes.clear(previousRecoveryEmail);
+    response.json({ recoveryEmail: authStore.getRecoveryEmail() });
   });
 
   app.post("/api/session/recover", async (request, response) => {
