@@ -30,7 +30,7 @@ npm start
 
 ## 环境变量
 
-仓库不包含 `.env`，也不包含任何密码、哈希或 API Key。克隆项目后，从 `.env.example` 复制一份并命名为 `nexus-home.env`：
+仓库不包含 `nexus-home.env`，也不包含任何密码、哈希或 API Key。克隆项目后，从 `.env.example` 复制一份并命名为 `nexus-home.env`：
 
 ```powershell
 Copy-Item .env.example nexus-home.env
@@ -43,9 +43,9 @@ RESEND_API_KEY='re_你的发送权限密钥'
 RECOVERY_EMAIL_FROM='someone@example.com'
 ```
 
-`.env` 只保存在运行服务器上，并已由 `.gitignore` 排除；提交 GitHub 的是 `.env.example`，其中只放字段名与示例值。
+`nexus-home.env` 只保存在运行服务器上，并已由 `.gitignore` 排除；提交 GitHub 的是 `.env.example`，其中只放字段名与示例值。
 
-nexus-home.env
+示例nexus-home.env文件
 
 ![alt text](image.png)
 
