@@ -38,6 +38,6 @@ EXPOSE 21026
 VOLUME ["/app/data"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD ["node", "-e", "const port=process.env.PORT||21026;fetch('http://127.0.0.1:'+port+'/api/health').then((response)=>{if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+  CMD ["node", "-e", "const port=process.env.PORT||21026;const healthPath=process.env.SERVICE_MODE==='mail-api'?'/health':'/api/health';fetch('http://127.0.0.1:'+port+healthPath).then((response)=>{if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))"]
 
 CMD ["node", "server/index.mjs"]

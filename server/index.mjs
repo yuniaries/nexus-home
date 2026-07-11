@@ -2,6 +2,7 @@ import { networkInterfaces } from "node:os";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createNexusApp } from "./app.mjs";
+import { createMailApi } from "./mail-api.mjs";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const host = process.env.HOST?.trim() || "0.0.0.0";
@@ -11,7 +12,10 @@ if (!Number.isInteger(requestedPort) || requestedPort < 0 || requestedPort > 65_
   throw new Error("PORT must be an integer between 0 and 65535.");
 }
 
-const runtime = await createNexusApp({ rootDir });
+const serviceMode = process.env.SERVICE_MODE?.trim();
+const runtime = serviceMode === "mail-api"
+  ? createMailApi()
+  : await createNexusApp({ rootDir });
 const server = runtime.app.listen(requestedPort, host, () => {
   const address = server.address();
   const port = typeof address === "object" && address ? address.port : requestedPort;
@@ -27,10 +31,13 @@ const server = runtime.app.listen(requestedPort, host, () => {
     urls.add(`http://${host}:${port}`);
   }
 
-  console.log("\nNEXUS HOME is ready:");
+  console.log(serviceMode === "mail-api" ? "\nNEXUS MAIL API is ready:" : "\nNEXUS HOME is ready:");
   for (const url of urls) {
-    console.log(`  Home:   ${url}/`);
-    console.log(`  Config: ${url}/config`);
+    if (serviceMode === "mail-api") console.log(`  Health: ${url}/health`);
+    else {
+      console.log(`  Home:   ${url}/`);
+      console.log(`  Config: ${url}/config`);
+    }
   }
   console.log("");
 });

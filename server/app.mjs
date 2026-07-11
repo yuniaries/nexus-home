@@ -8,6 +8,7 @@ import { AuthStore } from "./auth-store.mjs";
 import { hashPassword } from "./hash-password.mjs";
 import { RecoveryCodeStore } from "./recovery-code-store.mjs";
 import { ResendMailer } from "./resend-mailer.mjs";
+import { CentralRecoveryMailer } from "./central-mailer.mjs";
 import { LoginRateLimiter, SessionManager } from "./sessions.mjs";
 
 const JSON_LIMIT = "256kb";
@@ -154,7 +155,8 @@ export async function createNexusApp(options = {}) {
     });
   const loginLimiter = options.loginLimiter ?? new LoginRateLimiter();
   const recoveryCodes = options.recoveryCodes ?? new RecoveryCodeStore();
-  const mailer = options.mailer ?? new ResendMailer();
+  const directMailer = new ResendMailer();
+  const mailer = options.mailer ?? (directMailer.configured ? directMailer : new CentralRecoveryMailer());
   const events = options.events ?? new ConfigEventHub(options.eventOptions);
   const logger = options.logger ?? console;
   const app = express();
@@ -273,7 +275,7 @@ export async function createNexusApp(options = {}) {
       return;
     }
     if (mailer.configured === false) {
-      response.status(503).json({ code: "EMAIL_SERVICE_NOT_CONFIGURED", error: "邮件服务未配置，请在容器环境变量中设置 RESEND_API_KEY 与 RECOVERY_EMAIL_FROM。" });
+      response.status(503).json({ code: "EMAIL_SERVICE_NOT_CONFIGURED", error: "邮件服务暂时不可用，请稍后重试。" });
       return;
     }
     const rate = loginLimiter.status(`${request.ip}:recovery-email`);
