@@ -83,11 +83,16 @@ npm start
 
 `data/config.json` 与 `data/auth.json` 都是每个部署实例独有的私有数据，已被 `.gitignore` 排除，不应上传 GitHub。
 
-## Docker
+## Docker 启动流程
 
 ```bash
+# 下载最新版镜像。
 docker pull yuni020126/nexus-home:latest
+
+# 仅在之前部署过、需要替换旧容器时执行；第一次部署可跳过这一行。
 docker rm -f nexus-home
+
+# 创建并在后台启动主页容器。
 docker run -d \
   --name nexus-home \
   --restart unless-stopped \
@@ -100,6 +105,20 @@ docker run -d \
 `nexus-home-data` 是持久化数据卷，保存主页配置、管理员密码哈希和恢复邮箱。更新容器时不要删除该数据卷。
 
 如果你使用 1Panel、Nginx、Cloudflare 等方式把域名转发到容器，请保留 `-e TRUST_PROXY=1`。如果只是直接通过 `IP:21026` 访问，请删除这一整行。
+
+### 从零开始重新初始化
+
+以下命令会删除当前 NEXUS HOME 的主页配置、管理员密码和恢复邮箱。下次启动容器并打开 `/config` 时，将重新进入首次设置流程。
+
+```bash
+# 停止并删除主页容器；若容器不存在也不会中断命令。
+docker rm -f nexus-home 2>/dev/null || true
+
+# 删除持久化数据卷：主页配置、管理员密码哈希与恢复邮箱都会被清空。
+docker volume rm nexus-home-data
+```
+
+这不会删除 Docker 镜像，也不会影响中央邮件服务 `nexus-mailapi`。
 
 ## Compose
 
@@ -117,4 +136,3 @@ docker compose down
 ## 备份
 
 备份 `data/config.json` 与 `data/auth.json` 即可保留站点配置和管理员认证状态。
-
