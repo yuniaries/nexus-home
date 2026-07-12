@@ -1,7 +1,13 @@
+Exit code: 0
+Wall time: 0.3 seconds
+Output:
 node_modules/
 dist/
+# 运行实例私有数据：首次启动时自动生成，绝不提交到 Git。
 data/config.json
+data/auth.json
 data/*.tmp
 nexus-home.env
 .env
 npm-debug.log*
+
