@@ -73,6 +73,16 @@ npm start
 
 首次运行时，`data/config.json` 从 `config/default.json` 初始化。配置台使用原子写入保存数据，服务重启后配置保持不变。
 
+### 首次初始化流程
+
+无需手动创建 `data/config.json` 或 `data/auth.json`。将 Docker 容器挂载到空的数据卷后，服务会自动完成以下初始化：
+
+1. 服务启动时，根据 `config/default.json` 创建 `data/config.json`。之后在 `/config` 保存的主页文案、颜色、项目和布局，都会写入这个文件。
+2. 第一次访问 `/config` 时，设置管理员密码并填写恢复邮箱。确认后，系统创建 `data/auth.json`，其中只保存密码哈希与恢复邮箱。
+3. 以后更新镜像或重建容器时，继续挂载原来的 `nexus-home-data` 卷，两个文件会被保留，无需重新设置。
+
+`data/config.json` 与 `data/auth.json` 都是每个部署实例独有的私有数据，已被 `.gitignore` 排除，不应上传 GitHub。
+
 ## Docker
 
 ```bash
