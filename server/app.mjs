@@ -7,9 +7,7 @@ import { ConfigValidationError } from "./config-schema.mjs";
 import { ConfigStore, RevisionConflictError } from "./config-store.mjs";
 import { AuthStore } from "./auth-store.mjs";
 import { hashPassword } from "./hash-password.mjs";
-import { RecoveryCodeStore } from "./recovery-code-store.mjs";
-import { ResendMailer } from "./resend-mailer.mjs";
-import { CentralRecoveryMailer } from "./central-mailer.mjs";
+import { CentralRecoveryService } from "./central-recovery-service.mjs";
 import { LoginRateLimiter, SessionManager } from "./sessions.mjs";
 
 const JSON_LIMIT = "256kb";
@@ -155,9 +153,7 @@ export async function createNexusApp(options = {}) {
       passwordHash: authStore.getPasswordHash() || environmentPasswordHash,
     });
   const loginLimiter = options.loginLimiter ?? new LoginRateLimiter();
-  const recoveryCodes = options.recoveryCodes ?? new RecoveryCodeStore();
-  const directMailer = new ResendMailer();
-  const mailer = options.mailer ?? (directMailer.configured ? directMailer : new CentralRecoveryMailer());
+  const recoveryService = options.recoveryService ?? new CentralRecoveryService();
   const events = options.events ?? new ConfigEventHub(options.eventOptions);
   const logger = options.logger ?? console;
   const app = express();
@@ -190,11 +186,17 @@ export async function createNexusApp(options = {}) {
   app.get("/api/health/live", (_request, response) => response.json({ status: "ok" }));
   app.get("/api/health/ready", health);
 
-  app.get("/api/session", (request, response) => {
+  app.get("/api/session", async (request, response) => {
     const recoveryEmail = authStore.getRecoveryEmail();
-    const recoveryCooldownSeconds = authStore.hasRecoveryEmail()
-      ? recoveryCodes.status(recoveryEmail).retryAfterSeconds
-      : 0;
+    let recoveryCooldownSeconds = 0;
+    if (authStore.hasRecoveryEmail() && recoveryService.configured !== false) {
+      try {
+        const status = await recoveryService.status({ scope: authStore.getRecoveryScope(), email: recoveryEmail });
+        recoveryCooldownSeconds = Number.isInteger(status?.retryAfterSeconds) ? status.retryAfterSeconds : 0;
+      } catch {
+        // The following request will expose a delivery error if the central service is unavailable.
+      }
+    }
     const payload = {
       setupRequired: !passwordConfigured(),
       passwordRequired: passwordConfigured(),
@@ -282,7 +284,7 @@ export async function createNexusApp(options = {}) {
       response.status(409).json({ code: "EMAIL_RECOVERY_NOT_AVAILABLE", error: "当前未绑定恢复邮箱。" });
       return;
     }
-    if (mailer.configured === false) {
+    if (recoveryService.configured === false) {
       response.status(503).json({ code: "EMAIL_SERVICE_NOT_CONFIGURED", error: "邮件服务暂时不可用，请稍后重试。" });
       return;
     }
@@ -292,23 +294,21 @@ export async function createNexusApp(options = {}) {
       response.status(429).json({ code: "RECOVERY_RATE_LIMIT", error: "请求次数过多，请稍后再试。" });
       return;
     }
-    const cooldown = recoveryCodes.status(recoveryEmail);
-    if (!cooldown.allowed) {
-      response.set("Retry-After", String(cooldown.retryAfterSeconds));
-      response.status(429).json({ code: "RECOVERY_COOLDOWN", error: `请在 ${cooldown.retryAfterSeconds} 秒后重新发送。`, retryAfterSeconds: cooldown.retryAfterSeconds });
-      return;
-    }
-    const issued = recoveryCodes.issue(recoveryEmail);
     try {
-      await mailer.sendRecoveryCode({ to: recoveryEmail, code: issued.code });
-    } catch {
-      recoveryCodes.clear(recoveryEmail);
+      const issued = await recoveryService.issue({ scope: authStore.getRecoveryScope(), email: recoveryEmail });
+      loginLimiter.success(`${request.ip}:recovery-email`);
+      response.json({ sent: true, expiresAt: issued.expiresAt, retryAfterSeconds: issued.retryAfterSeconds });
+    } catch (error) {
       loginLimiter.failure(`${request.ip}:recovery-email`);
+      if (error?.status === 429) {
+        const seconds = Number.isInteger(error.retryAfterSeconds) ? error.retryAfterSeconds : 60;
+        response.set("Retry-After", String(seconds));
+        response.status(429).json({ code: "RECOVERY_COOLDOWN", error: error.message, retryAfterSeconds: seconds });
+        return;
+      }
       response.status(503).json({ code: "EMAIL_DELIVERY_UNAVAILABLE", error: "验证码邮件暂时无法发送，请稍后重试。" });
       return;
     }
-    loginLimiter.success(`${request.ip}:recovery-email`);
-    response.json({ sent: true, expiresAt: new Date(issued.expiresAt).toISOString(), retryAfterSeconds: recoveryCodes.status(recoveryEmail).retryAfterSeconds });
   });
 
   app.put("/api/session/recovery-email", async (request, response) => {
@@ -325,9 +325,7 @@ export async function createNexusApp(options = {}) {
       response.status(400).json({ code: "RECOVERY_EMAIL_REQUIRED", error: "请输入有效的恢复邮箱。" });
       return;
     }
-    const previousRecoveryEmail = authStore.getRecoveryEmail();
     await authStore.setCredentials({ passwordHash: authStore.getPasswordHash(), recoveryEmail });
-    recoveryCodes.clear(previousRecoveryEmail);
     response.json({ recoveryEmail: authStore.getRecoveryEmail() });
   });
 
@@ -360,7 +358,19 @@ export async function createNexusApp(options = {}) {
       return;
     }
 
-    const recoveryValid = recoveryCodes.verify(authStore.getRecoveryEmail(), recoveryCode.toUpperCase());
+    let recoveryValid = false;
+    try {
+      const result = await recoveryService.verify({ scope: authStore.getRecoveryScope(), email: authStore.getRecoveryEmail(), code: recoveryCode.toUpperCase() });
+      recoveryValid = result?.verified === true;
+    } catch (error) {
+      if (error?.status === 401) {
+        loginLimiter.failure(limiterKey);
+        response.status(401).json({ code: "INVALID_RECOVERY_CODE", error: error.message || "验证码或恢复凭证不正确。" });
+        return;
+      }
+      response.status(503).json({ code: "RECOVERY_SERVICE_UNAVAILABLE", error: "验证码服务暂时不可用，请稍后重试。" });
+      return;
+    }
     if (!recoveryValid) {
       loginLimiter.failure(limiterKey);
       response.status(401).json({ code: "INVALID_RECOVERY_CODE", error: "验证码或恢复凭证不正确。" });

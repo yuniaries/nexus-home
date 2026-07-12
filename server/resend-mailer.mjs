@@ -20,7 +20,7 @@ export class ResendMailer {
         from: `NEXUS Recovery <${this.from}>`,
         to: [to],
         subject: "NEXUS 密码恢复验证码",
-        text: `您本次的恢复验证码为${code}\n\n此验证码有效期为10分钟，请勿向任何人透露。`,
+        text: `您本次的恢复验证码为${code}\n\n此验证码有效期为5分钟，请勿向任何人透露。`,
       }),
     });
     if (!response.ok) throw new Error("邮件服务暂时无法投递验证码。");

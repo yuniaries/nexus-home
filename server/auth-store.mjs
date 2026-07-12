@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { atomicWriteJson } from "./config-store.mjs";
 
@@ -27,14 +28,17 @@ export class AuthStore {
     this.#initializing = (async () => {
       try {
         const stored = await readJsonFile(this.authPath);
+        const recoveryScope = typeof stored?.recoveryScope === "string" && stored.recoveryScope ? stored.recoveryScope : randomUUID();
         this.#current = {
-          schemaVersion: 1,
+          schemaVersion: 2,
           passwordHash: typeof stored?.passwordHash === "string" ? stored.passwordHash : "",
           recoveryEmail: typeof stored?.recoveryEmail === "string" ? stored.recoveryEmail.trim().toLowerCase() : "",
+          recoveryScope,
         };
+        if (this.#current.passwordHash && !stored?.recoveryScope) await atomicWriteJson(this.authPath, this.#current);
       } catch (error) {
         if (error.code !== "ENOENT") throw error;
-        this.#current = { schemaVersion: 1, passwordHash: "", recoveryEmail: "" };
+        this.#current = { schemaVersion: 2, passwordHash: "", recoveryEmail: "", recoveryScope: randomUUID() };
       }
       this.ready = true;
       return this.get();
@@ -48,12 +52,13 @@ export class AuthStore {
   hasRecoveryEmail() { return Boolean(this.#current?.recoveryEmail && EMAIL_PATTERN.test(this.#current.recoveryEmail)); }
   getPasswordHash() { return this.#current?.passwordHash || ""; }
   getRecoveryEmail() { return this.#current?.recoveryEmail || ""; }
+  getRecoveryScope() { return this.#current?.recoveryScope || ""; }
 
   async setCredentials({ passwordHash, recoveryEmail } = {}) {
     const normalizedEmail = typeof recoveryEmail === "string" ? recoveryEmail.trim().toLowerCase() : "";
     if (typeof passwordHash !== "string" || !passwordHash) throw new TypeError("passwordHash is required.");
     if (normalizedEmail && !EMAIL_PATTERN.test(normalizedEmail)) throw new TypeError("recoveryEmail is invalid.");
-    const next = { schemaVersion: 1, passwordHash, recoveryEmail: normalizedEmail };
+    const next = { schemaVersion: 2, passwordHash, recoveryEmail: normalizedEmail, recoveryScope: this.getRecoveryScope() || randomUUID() };
     await atomicWriteJson(this.authPath, next);
     this.#current = next;
     this.ready = true;

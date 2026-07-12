@@ -421,7 +421,7 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
             <p className="recovery-bound-email">您当前所绑定的邮箱是 <strong>{maskRecoveryEmail(boundRecoveryEmail)}</strong></p>
             <label className="login-field"><span>RECOVERY CODE</span><div className={status === "error" ? "has-error" : ""}><KeyRound size={17} /><input autoFocus lang="en" inputMode="text" autoComplete="one-time-code" maxLength={6} value={recoveryCode} onChange={(event) => update(setRecoveryCode)(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="输入 6 位验证码" /></div></label>
             <button className="login-link login-link--code" type="button" onClick={requestRecoveryCode} disabled={codeStatus === "loading" || cooldown > 0}>{codeStatus === "loading" ? "正在发送…" : cooldown > 0 ? `${cooldown} 秒后可重新发送` : "发送恢复验证码"}</button>
-            {codeStatus === "sent" && <p className="recovery-mail-notice">一封来自 no-reply@aries.edu.kg 的包含重置密码验证码的邮件已发送，此地址不受监控，请勿回复。<br />如未找到验证码，请检查垃圾箱。</p>}
+            {codeStatus === "sent" && <p className="recovery-mail-notice">一封来自 no-reply@aries.edu.kg 的包含重置密码验证码的邮件已发送，此地址不受监控，请勿回复。<br />验证码有效期为 5 分钟；如未找到验证码，请检查垃圾箱。</p>}
             {codeStatus === "error" && <small className="login-error"><CircleAlert size={13} /> {codeError}</small>}
           </> : <>
             <label className="login-field"><span>SECURITY QUESTION</span><div className="login-readonly"><ShieldCheck size={16} /><input lang="zh-CN" value={recoveryQuestion} readOnly /></div></label>

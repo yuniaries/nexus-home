@@ -8,7 +8,7 @@ import { createNexusApp } from "../server/app.mjs";
 
 const silentLogger = { error() {} };
 
-async function startFixture(t, { password = "", mailer } = {}) {
+async function startFixture(t, { password = "", recoveryService } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), "nexus-server-"));
   const defaultPath = path.join(directory, "default.json");
   const configPath = path.join(directory, "data", "config.json");
@@ -20,7 +20,7 @@ async function startFixture(t, { password = "", mailer } = {}) {
     configPath,
     dataDir: path.join(directory, "data"),
     password,
-    mailer,
+    recoveryService,
     enableFrontend: false,
     eventOptions: { heartbeatMs: 50 },
     logger: silentLogger,
@@ -253,7 +253,16 @@ test("an unconfigured server requires first-time password setup before configura
 
 test("first-time setup binds a recovery email and allows a verification-code password reset", async (t) => {
   const sentCodes = [];
-  const fixture = await startFixture(t, { mailer: { sendRecoveryCode: async ({ code }) => sentCodes.push(code) } });
+  let code = "A2BCDE";
+  let issued = false;
+  const fixture = await startFixture(t, {
+    recoveryService: {
+      configured: true,
+      status: async () => ({ retryAfterSeconds: issued ? 60 : 0 }),
+      issue: async () => { issued = true; sentCodes.push(code); return { expiresAt: new Date(Date.now() + 300_000).toISOString(), retryAfterSeconds: 60 }; },
+      verify: async ({ code: candidate }) => ({ verified: candidate === code }),
+    },
+  });
   const recoveryEmail = "recover@example.com";
 
   const setup = await fetch(`${fixture.baseUrl}/api/session`, {
