@@ -277,6 +277,8 @@ test("first-time setup binds a recovery email and allows a verification-code pas
   const requestCode = await fetch(`${fixture.baseUrl}/api/session/recovery-code`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
   assert.equal(requestCode.status, 200);
   assert.match(sentCodes[0], /^(?=.*[A-Z])(?=.*\d)[A-Z\d]{6}$/);
+  const cooldownStatus = await fetch(`${fixture.baseUrl}/api/session`);
+  assert.ok((await cooldownStatus.json()).recoveryCooldownSeconds > 0);
 
   const reset = await fetch(`${fixture.baseUrl}/api/session/recover`, {
     method: "POST",
@@ -287,6 +289,8 @@ test("first-time setup binds a recovery email and allows a verification-code pas
   const resetPayload = await reset.json();
   assert.equal(resetPayload.authenticated, true);
   assert.equal(resetPayload.recoveryEmail, recoveryEmail);
+  const cooldownAfterReset = await fetch(`${fixture.baseUrl}/api/session`);
+  assert.ok((await cooldownAfterReset.json()).recoveryCooldownSeconds > 0);
 
   const login = await fetch(`${fixture.baseUrl}/api/session`, {
     method: "POST",
@@ -294,6 +298,48 @@ test("first-time setup binds a recovery email and allows a verification-code pas
     body: JSON.stringify({ password: "new password" }),
   });
   assert.equal(login.status, 200);
+});
+
+test("an authenticated administrator can change the password and is signed out", async (t) => {
+  const fixture = await startFixture(t, { password: "old password" });
+  const login = await fetch(`${fixture.baseUrl}/api/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: "old password" }),
+  });
+  const cookie = cookieFrom(login);
+
+  const unchanged = await fetch(`${fixture.baseUrl}/api/session/password`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({ currentPassword: "old password", newPassword: "old password" }),
+  });
+  assert.equal(unchanged.status, 400);
+  assert.equal((await unchanged.json()).code, "PASSWORD_UNCHANGED");
+
+  const changed = await fetch(`${fixture.baseUrl}/api/session/password`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({ currentPassword: "old password", newPassword: "new password" }),
+  });
+  assert.equal(changed.status, 200);
+  assert.deepEqual(await changed.json(), { changed: true, loggedOut: true });
+
+  const expired = await fetch(`${fixture.baseUrl}/api/session`, { headers: { Cookie: cookie } });
+  assert.equal((await expired.json()).authenticated, false);
+
+  const oldLogin = await fetch(`${fixture.baseUrl}/api/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: "old password" }),
+  });
+  assert.equal(oldLogin.status, 401);
+  const newLogin = await fetch(`${fixture.baseUrl}/api/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: "new password" }),
+  });
+  assert.equal(newLogin.status, 200);
 });
 
 async function startFrontendMode(t, production) {

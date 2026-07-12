@@ -7,7 +7,7 @@ import "./styles.css";
 import "./styles.home.css";
 
 function App() {
-  const isConfig = window.location.pathname === "/config" || window.location.pathname.startsWith("/config/");
+  const isConfig = window.location.pathname === "/config" || window.location.pathname.startsWith("/config/") || window.location.pathname === "/recovery-password";
   return isConfig ? <ConfigPage /> : <HomePage />;
 }
 

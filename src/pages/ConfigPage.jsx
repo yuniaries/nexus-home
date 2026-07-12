@@ -90,7 +90,7 @@ const countryOptions = [
   ["Kazakhstan", "哈萨克斯坦", "Asia/Almaty"], ["Kenya", "肯尼亚", "Africa/Nairobi"], ["Kuwait", "科威特", "Asia/Kuwait"], ["Kyrgyzstan", "吉尔吉斯斯坦", "Asia/Bishkek"], ["Laos", "老挝", "Asia/Vientiane"], ["Latvia", "拉脱维亚", "Europe/Riga"], ["Lebanon", "黎巴嫩", "Asia/Beirut"], ["Libya", "利比亚", "Africa/Tripoli"], ["Lithuania", "立陶宛", "Europe/Vilnius"], ["Luxembourg", "卢森堡", "Europe/Luxembourg"], ["Macau", "中国澳门", "Asia/Macau"], ["Malaysia", "马来西亚", "Asia/Kuala_Lumpur"], ["Mexico", "墨西哥", "America/Mexico_City"], ["Moldova", "摩尔多瓦", "Europe/Chisinau"], ["Mongolia", "蒙古", "Asia/Ulaanbaatar"], ["Morocco", "摩洛哥", "Africa/Casablanca"], ["Myanmar", "缅甸", "Asia/Yangon"],
   ["Nepal", "尼泊尔", "Asia/Kathmandu"], ["Netherlands", "荷兰", "Europe/Amsterdam"], ["New Zealand", "新西兰", "Pacific/Auckland"], ["Nigeria", "尼日利亚", "Africa/Lagos"], ["North Korea", "朝鲜", "Asia/Pyongyang"], ["Norway", "挪威", "Europe/Oslo"], ["Pakistan", "巴基斯坦", "Asia/Karachi"], ["Palestine", "巴勒斯坦", "Asia/Gaza"], ["Panama", "巴拿马", "America/Panama"], ["Peru", "秘鲁", "America/Lima"], ["Philippines", "菲律宾", "Asia/Manila"], ["Poland", "波兰", "Europe/Warsaw"], ["Portugal", "葡萄牙", "Europe/Lisbon"], ["Puerto Rico", "波多黎各", "America/Puerto_Rico"],
   ["Qatar", "卡塔尔", "Asia/Qatar"], ["Romania", "罗马尼亚", "Europe/Bucharest"], ["Russia", "俄罗斯", "Europe/Moscow"], ["Saudi Arabia", "沙特阿拉伯", "Asia/Riyadh"], ["Serbia", "塞尔维亚", "Europe/Belgrade"], ["Singapore", "新加坡", "Asia/Singapore"], ["Slovakia", "斯洛伐克", "Europe/Bratislava"], ["Slovenia", "斯洛文尼亚", "Europe/Ljubljana"], ["South Africa", "南非", "Africa/Johannesburg"], ["South Korea", "韩国", "Asia/Seoul"], ["Spain", "西班牙", "Europe/Madrid"], ["Sri Lanka", "斯里兰卡", "Asia/Colombo"], ["Sweden", "瑞典", "Europe/Stockholm"], ["Switzerland", "瑞士", "Europe/Zurich"],
-  ["Taiwan", "中国台湾", "Asia/Taipei"], ["Tajikistan", "塔吉克斯坦", "Asia/Dushanbe"], ["Thailand", "泰国", "Asia/Bangkok"], ["Tunisia", "突尼斯", "Africa/Tunis"], ["Turkey", "土耳其", "Europe/Istanbul"], ["Ukraine", "乌克兰", "Europe/Kyiv"], ["United Arab Emirates", "阿拉伯联合酋长国", "Asia/Dubai"], ["United Kingdom", "英国", "Europe/London"], ["United States", "美国", "America/New_York"], ["Uruguay", "乌拉圭", "America/Montevideo"], ["Uzbekistan", "乌兹别克斯坦", "Asia/Tashkent"], ["Venezuela", "委内瑞拉", "America/Caracas"], ["Vietnam", "越南", "Asia/Ho_Chi_Minh"], ["Yemen", "也门", "Asia/Aden"],
+  ["Taiwan", "台湾", "Asia/Taipei"], ["Tajikistan", "塔吉克斯坦", "Asia/Dushanbe"], ["Thailand", "泰国", "Asia/Bangkok"], ["Tunisia", "突尼斯", "Africa/Tunis"], ["Turkey", "土耳其", "Europe/Istanbul"], ["Ukraine", "乌克兰", "Europe/Kyiv"], ["United Arab Emirates", "阿拉伯联合酋长国", "Asia/Dubai"], ["United Kingdom", "英国", "Europe/London"], ["United States", "美国", "America/New_York"], ["Uruguay", "乌拉圭", "America/Montevideo"], ["Uzbekistan", "乌兹别克斯坦", "Asia/Tashkent"], ["Venezuela", "委内瑞拉", "America/Caracas"], ["Vietnam", "越南", "Asia/Ho_Chi_Minh"], ["Yemen", "也门", "Asia/Aden"],
 ].map(([value, label, timeZone]) => ({ value, label, timeZone }));
 
 const fallbackTimeZones = ["Etc/UTC", "Asia/Shanghai", "Asia/Hong_Kong", "Asia/Tokyo", "Asia/Singapore", "Asia/Kolkata", "Asia/Dubai", "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Moscow", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "America/Toronto", "America/Sao_Paulo", "Australia/Sydney", "Pacific/Auckland"];
@@ -317,7 +317,7 @@ function maskRecoveryEmail(email) {
   return `${local.slice(0, 1)}${"*".repeat(Math.max(3, local.length - 1))}@${domain}`;
 }
 
-function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundRecoveryEmail = "", recoveryMode = "", canRecover = false, onAuthenticated }) {
+function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundRecoveryEmail = "", recoveryMode = "", recoveryCooldownSeconds = 0, canRecover = false, onAuthenticated, onRequestRecovery, onReturnToLogin }) {
   const [screen, setScreen] = useState(mode);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -329,11 +329,12 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [visible, setVisible] = useState({ recoveryAnswer: true, confirmRecoveryAnswer: true });
   const [status, setStatus] = useState("idle");
+  const [authError, setAuthError] = useState("");
   const [codeStatus, setCodeStatus] = useState("idle");
   const [codeError, setCodeError] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const toggle = (key) => setVisible((current) => ({ ...current, [key]: !current[key] }));
-  const update = (setter) => (value) => { setter(value); setStatus("idle"); };
+  const update = (setter) => (value) => { setter(value); setStatus("idle"); setAuthError(""); };
 
   useEffect(() => {
     setScreen(mode);
@@ -347,10 +348,11 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
     setNewPassword("");
     setConfirmNewPassword("");
     setVisible({ recoveryAnswer: true, confirmRecoveryAnswer: true });
-    setCodeStatus("idle");
+    setCodeStatus(Number.isInteger(recoveryCooldownSeconds) && recoveryCooldownSeconds > 0 ? "sent" : "idle");
     setCodeError("");
-    setCooldown(0);
-  }, [mode, recoveryQuestion, recoveryMode]);
+    setAuthError("");
+    setCooldown(Number.isInteger(recoveryCooldownSeconds) ? recoveryCooldownSeconds : 0);
+  }, [mode, recoveryQuestion, recoveryMode, recoveryCooldownSeconds]);
 
   const isSetup = screen === "setup";
   const isRecover = screen === "recover";
@@ -359,9 +361,9 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
 
   const submit = async (event) => {
     event.preventDefault();
-    if (isSetup && password !== confirmPassword) return setStatus("error");
-    if (isSetup && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail.trim())) return setStatus("error");
-    if (isRecover && ((!usesEmailRecovery && !recoveryAvailable) || (usesEmailRecovery && !recoveryCode.trim()) || newPassword !== confirmNewPassword)) return setStatus("error");
+    if (isSetup && password !== confirmPassword) { setAuthError("两次输入的密码不一致。"); return setStatus("error"); }
+    if (isSetup && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail.trim())) { setAuthError("请输入有效的恢复邮箱。"); return setStatus("error"); }
+    if (isRecover && ((!usesEmailRecovery && !recoveryAvailable) || (usesEmailRecovery && !recoveryCode.trim()) || newPassword !== confirmNewPassword)) { setAuthError("请确认验证码与两次输入的新密码。"); return setStatus("error"); }
     setStatus("loading");
     try {
       const response = await fetch(isRecover ? "/api/session/recover" : "/api/session", {
@@ -374,8 +376,9 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
       if (!response.ok) throw new Error(result.error || "认证失败");
       setStatus("success");
       window.setTimeout(() => onAuthenticated(result), 280);
-    } catch {
+    } catch (error) {
       setStatus("error");
+      setAuthError(error.message || "认证失败，请稍后重试。");
     }
   };
 
@@ -390,7 +393,7 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
         throw new Error(result.error || "验证码邮件发送失败，请稍后重试。");
       }
       setCodeStatus("sent");
-      setCooldown(60);
+      setCooldown(Number.isInteger(result.retryAfterSeconds) ? result.retryAfterSeconds : 60);
     } catch (error) {
       setCodeStatus("error");
       setCodeError(error.message || "验证码邮件发送失败，请稍后重试。");
@@ -418,7 +421,7 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
             <p className="recovery-bound-email">您当前所绑定的邮箱是 <strong>{maskRecoveryEmail(boundRecoveryEmail)}</strong></p>
             <label className="login-field"><span>RECOVERY CODE</span><div className={status === "error" ? "has-error" : ""}><KeyRound size={17} /><input autoFocus lang="en" inputMode="text" autoComplete="one-time-code" maxLength={6} value={recoveryCode} onChange={(event) => update(setRecoveryCode)(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="输入 6 位验证码" /></div></label>
             <button className="login-link login-link--code" type="button" onClick={requestRecoveryCode} disabled={codeStatus === "loading" || cooldown > 0}>{codeStatus === "loading" ? "正在发送…" : cooldown > 0 ? `${cooldown} 秒后可重新发送` : "发送恢复验证码"}</button>
-            {codeStatus === "sent" && <p className="recovery-mail-notice">一封来自 no-reply@aries.edu.kg 的包含重置密码验证码的邮件已发送，此地址不受监控，请勿回复。</p>}
+            {codeStatus === "sent" && <p className="recovery-mail-notice">一封来自 no-reply@aries.edu.kg 的包含重置密码验证码的邮件已发送，此地址不受监控，请勿回复。<br />如未找到验证码，请检查垃圾箱。</p>}
             {codeStatus === "error" && <small className="login-error"><CircleAlert size={13} /> {codeError}</small>}
           </> : <>
             <label className="login-field"><span>SECURITY QUESTION</span><div className="login-readonly"><ShieldCheck size={16} /><input lang="zh-CN" value={recoveryQuestion} readOnly /></div></label>
@@ -433,13 +436,13 @@ function AuthGate({ mode = "login", recoveryQuestion = "", recoveryEmail: boundR
             <label className="login-field"><span>RECOVERY EMAIL</span><div className={status === "error" ? "has-error" : ""}><Mail size={17} /><input lang="en" inputMode="email" autoComplete="email" type="email" value={recoveryEmail} onChange={(event) => update(setRecoveryEmail)(event.target.value)} placeholder="绑定用于恢复密码的邮箱" /></div></label>
           </>}
         </>}
-        {status === "error" && <small className="login-error"><CircleAlert size={13} /> {isRecover ? "验证码或新密码有误" : isSetup ? "请确认密码与恢复邮箱" : "密码不正确，请重新确认"}</small>}
+        {status === "error" && <small className="login-error"><CircleAlert size={13} /> {authError || (isRecover ? "验证码或新密码有误" : isSetup ? "请确认密码与恢复邮箱" : "密码不正确，请重新确认")}</small>}
         <button className="login-submit" type="submit" disabled={status === "loading" || (isRecover ? (usesEmailRecovery ? !recoveryCode || !newPassword || !confirmNewPassword : !recoveryAvailable || !recoveryAnswer || !newPassword || !confirmNewPassword) : !password)}>
           {status === "loading" ? <LoaderCircle className="spin" size={18} /> : status === "success" ? <Check size={18} /> : <ArrowRight size={18} />}
           <span>{status === "loading" ? (isSetup ? "正在创建" : isRecover ? "正在重置" : "正在验证") : status === "success" ? "通道已建立" : isSetup ? "创建密码" : isRecover ? "重置密码" : "解锁控制台"}</span>
         </button>
-        {!isSetup && !isRecover && canRecover && <button className="login-link" type="button" onClick={() => setScreen("recover")}>忘记密码？使用邮箱验证码重置</button>}
-        {(isRecover || isSetup) && <button className="login-link" type="button" onClick={() => setScreen("login")}>返回登录</button>}
+        {!isSetup && !isRecover && canRecover && <button className="login-link" type="button" onClick={() => onRequestRecovery ? onRequestRecovery() : setScreen("recover")}>忘记密码？使用邮箱验证码重置</button>}
+        {isRecover && <button className="login-link" type="button" onClick={() => onReturnToLogin ? onReturnToLogin() : setScreen("login")}>返回登录</button>}
         <div className="login-foot"><span><i /> AES SESSION</span><span>{isSetup ? "PASSWORD + RECOVERY EMAIL WILL BE STORED IN DATA DIR" : isRecover ? "RESETS PASSWORD AFTER EMAIL CODE CHECK" : "PASSWORD STORED IN DATA DIR"}</span></div>
       </form>
       <a className="login-back" href="/"><ArrowLeft size={15} /> 返回主页</a>
@@ -463,6 +466,47 @@ function RecoveryEmailDialog({ currentEmail, onClose, onSaved }) {
     }
   };
   return <div className="recovery-email-modal" role="dialog" aria-modal="true" aria-label="修改恢复邮箱"><form onSubmit={submit}><button type="button" className="modal-close" onClick={onClose}><X size={17} /></button><span className="login-kicker"><Mail size={14} /> RECOVERY EMAIL</span><h2>修改恢复邮箱</h2><p>验证码将发送到新的邮箱地址。</p><label className="login-field"><span>NEW RECOVERY EMAIL</span><div className={status === "error" ? "has-error" : ""}><Mail size={17} /><input autoFocus type="email" lang="en" inputMode="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setStatus("idle"); }} placeholder="输入新的恢复邮箱" /></div></label>{status === "error" && <small className="login-error"><CircleAlert size={13} /> 邮箱格式无效或保存失败。</small>}<button className="login-submit" disabled={status === "saving" || !email.trim()}>{status === "saving" ? "正在保存…" : "保存恢复邮箱"}</button></form></div>;
+}
+
+function PasswordChangeDialog({ onClose, onChanged, onReturnToLogin }) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [visible, setVisible] = useState({ current: false, next: false, confirm: false });
+  const [status, setStatus] = useState("idle");
+  const [message, setMessage] = useState("");
+  const toggle = (key) => setVisible((value) => ({ ...value, [key]: !value[key] }));
+  const submit = async (event) => {
+    event.preventDefault();
+    if (currentPassword === newPassword) {
+      setStatus("error");
+      setMessage("新密码不能与旧密码相同。");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setStatus("error");
+      setMessage("两次输入的新密码不一致。");
+      return;
+    }
+    setStatus("saving");
+    setMessage("");
+    try {
+      const response = await fetch("/api/session/password", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "修改密码失败。");
+      onChanged();
+    } catch (error) {
+      setStatus("error");
+      setMessage(error.message || "修改密码失败，请稍后重试。");
+    }
+  };
+  const field = (label, key, value, setter, placeholder, autoComplete) => <label className="login-field"><span>{label}</span><div className={status === "error" ? "has-error" : ""}><KeyRound size={17} /><input type={visible[key] ? "text" : "password"} value={value} onChange={(event) => { setter(event.target.value); setStatus("idle"); setMessage(""); }} placeholder={placeholder} autoComplete={autoComplete} autoFocus={key === "current"} /><button className="password-eye" type="button" onClick={() => toggle(key)} aria-label={visible[key] ? "隐藏密码" : "显示密码"}>{visible[key] ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>;
+  return <div className="recovery-email-modal password-change-modal" role="dialog" aria-modal="true" aria-label="修改管理员密码"><form onSubmit={submit}><button type="button" className="modal-close" onClick={onClose}><X size={17} /></button><span className="login-kicker"><KeyRound size={14} /> PASSWORD UPDATE</span><h2>修改管理员密码</h2><p>验证当前密码后，即可为配置中心设置新的登录密码。</p>{field("CURRENT PASSWORD", "current", currentPassword, setCurrentPassword, "输入当前密码", "current-password")}{field("NEW PASSWORD", "next", newPassword, setNewPassword, "输入新密码", "new-password")}{field("CONFIRM NEW PASSWORD", "confirm", confirmPassword, setConfirmPassword, "再次输入新密码", "new-password")}{status === "error" && <><small className="login-error"><CircleAlert size={13} /> {message}</small><p className="password-change-choice">你可以继续修改新密码，或返回登录。</p><button className="login-link password-change-return" type="button" onClick={onReturnToLogin}>返回登录</button></>}<button className="login-submit" disabled={status === "saving" || !currentPassword || !newPassword || !confirmPassword}>{status === "saving" ? "正在修改…" : "更新密码"}</button><small className="password-change-note">修改后可能会要求你重新登录</small></form></div>;
 }
 
 function IdentityEditor({ draft, change }) {
@@ -618,9 +662,10 @@ function ProjectsEditor({ draft, updateArray }) {
   const update = (index, key, value) => updateArray("projects", draft.projects.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
   const remove = (index) => updateArray("projects", draft.projects.filter((_, itemIndex) => itemIndex !== index));
   const move = (index, direction) => updateArray("projects", moveItem(draft.projects, index, direction));
+  const setFeatured = (index, featured) => updateArray("projects", draft.projects.map((item, itemIndex) => ({ ...item, featured: featured && itemIndex === index })));
 
   return (
-    <EditorSection eyebrow="05 / PROJECTS" title="项目轨道" description="添加、排序和编辑首页项目。第一张标记为“重点”的项目会自动获得更大的视觉权重。" actions={<button className="button button--primary" type="button" onClick={add}><Plus size={16} /> 新建项目</button>}>
+    <EditorSection eyebrow="05 / PROJECTS" title="项目轨道" description="添加、排序和编辑首页项目。设为重点后，主页会优先以大卡片展示；后台编辑顺序保持不变，一次只保留一个重点项目。" actions={<button className="button button--primary" type="button" onClick={add}><Plus size={16} /> 新建项目</button>}>
       <div className="collection-list">
         {draft.projects.map((project, index) => (
           <PanelBlock key={project.id} className="collection-card" title={`${String(index + 1).padStart(2, "0")} · ${project.title || "未命名项目"}`} note={project.status} icon={GripVertical}>
@@ -637,7 +682,7 @@ function ProjectsEditor({ draft, updateArray }) {
               <TextField label="标签" hint="用逗号分隔" value={(project.tags || []).join(", ")} onChange={(value) => update(index, "tags", value.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 6))} />
               <ColorField label="项目信号色" value={project.color} onChange={(value) => update(index, "color", value)} />
             </div>
-            <label className="inline-check"><input type="checkbox" checked={Boolean(project.featured)} onChange={(event) => update(index, "featured", event.target.checked)} /><i><Check size={12} /></i><span>作为重点项目展示</span></label>
+            <label className="inline-check"><input type="checkbox" checked={Boolean(project.featured)} onChange={(event) => setFeatured(index, event.target.checked)} /><i><Check size={12} /></i><span>作为重点项目展示（主页优先放大）</span></label>
           </PanelBlock>
         ))}
       </div>
@@ -675,9 +720,16 @@ function MetricsEditor({ draft, updateArray, change }) {
     <EditorSection eyebrow="07 / DATA" title="数据与能力" description="把抽象能力变成可扫描的信号。数据可以是实际统计，也可以是你希望传达的能力坐标。">
       <PanelBlock title="关键数据轨" note="Hero metrics" icon={Activity}>
         <div className="metric-editor-grid">
-          {draft.metrics.map((metric, index) => (
-            <div className="metric-editor" key={metric.id}><span>0{index + 1}</span><TextField label="名称" value={metric.label} onChange={(value) => updateMetric(index, "label", value)} /><div className="metric-value-fields"><TextField label="数值" value={metric.value} onChange={(value) => updateMetric(index, "value", value)} /><TextField label="单位" value={metric.suffix} onChange={(value) => updateMetric(index, "suffix", value)} /></div><TextField label="趋势说明" value={metric.trend} onChange={(value) => updateMetric(index, "trend", value)} /></div>
-          ))}
+          {draft.metrics.map((metric, index) => {
+            const isUptimeMetric = metric.id === "metric-3";
+            const automatic = isUptimeMetric && metric.source === "serverUptime";
+            return <div className="metric-editor" key={metric.id}>
+              <span>0{index + 1}</span>
+              <TextField label="名称" value={metric.label} onChange={(value) => updateMetric(index, "label", value)} />
+              {isUptimeMetric && <SelectField label="运行时长来源" value={metric.source || "serverUptime"} onChange={(value) => updateMetric(index, "source", value)} options={[{ value: "manual", label: "自定义数值" }, { value: "serverUptime", label: "服务器开机时长（自动）" }]} />}
+              {automatic ? <p className="metric-auto-note">页面会读取服务器的实际开机时长，并每秒自动刷新。</p> : <><div className="metric-value-fields"><TextField label="数值" value={metric.value} onChange={(value) => updateMetric(index, "value", value)} /><TextField label="单位" value={metric.suffix} onChange={(value) => updateMetric(index, "suffix", value)} /></div><TextField label="趋势说明" value={metric.trend} onChange={(value) => updateMetric(index, "trend", value)} /></>}
+            </div>;
+          })}
         </div>
       </PanelBlock>
       <PanelBlock title="能力矩阵" note="Radar vectors" icon={Gauge}>
@@ -795,14 +847,16 @@ function SaveIndicator({ status, revision }) {
 
 export function ConfigPage() {
   const { config, connection, setConfig, mergeConfig } = useSiteConfig();
+  const isRecoveryRoute = window.location.pathname === "/recovery-password";
   const [draft, setDraft] = useState(() => clone(config));
   const [activeSection, setActiveSection] = useState("identity");
   const [device, setDevice] = useState("desktop");
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState("idle");
-  const [auth, setAuth] = useState({ loading: true, required: false, setupRequired: false, recoveryRequired: false, recoveryMode: "", recoveryEmail: "", recoveryQuestion: "", authenticated: false });
+  const [auth, setAuth] = useState({ loading: true, required: false, setupRequired: false, recoveryRequired: false, recoveryMode: "", recoveryEmail: "", recoveryQuestion: "", recoveryCooldownSeconds: 0, authenticated: false });
   const [recoveryEmailOpen, setRecoveryEmailOpen] = useState(false);
+  const [passwordChangeOpen, setPasswordChangeOpen] = useState(false);
   const saveTimer = useRef(null);
   const latestDraft = useRef(draft);
   const previewRef = useRef(null);
@@ -822,9 +876,10 @@ export function ConfigPage() {
         const recoveryMode = typeof data.recoveryMode === "string" ? data.recoveryMode : "";
         const recoveryEmail = typeof data.recoveryEmail === "string" ? data.recoveryEmail : "";
         const recoveryQuestion = typeof data.recoveryQuestion === "string" ? data.recoveryQuestion : "";
-        setAuth({ loading: false, required, setupRequired, recoveryRequired, recoveryMode, recoveryEmail, recoveryQuestion, authenticated: Boolean(data.authenticated) });
+        const recoveryCooldownSeconds = Number.isInteger(data.recoveryCooldownSeconds) ? data.recoveryCooldownSeconds : 0;
+        setAuth({ loading: false, required, setupRequired, recoveryRequired, recoveryMode, recoveryEmail, recoveryQuestion, recoveryCooldownSeconds, authenticated: Boolean(data.authenticated) });
       })
-      .catch(() => setAuth({ loading: false, required: true, setupRequired: false, recoveryRequired: false, recoveryMode: "", recoveryEmail: "", recoveryQuestion: "", authenticated: false }));
+      .catch(() => setAuth({ loading: false, required: true, setupRequired: false, recoveryRequired: false, recoveryMode: "", recoveryEmail: "", recoveryQuestion: "", recoveryCooldownSeconds: 0, authenticated: false }));
   }, []);
 
   useEffect(() => {
@@ -999,7 +1054,8 @@ export function ConfigPage() {
 
   if (auth.loading) return <div className="config-loading"><div className="config-loader"><i /><i /><i /></div><span>ESTABLISHING CONFIG CHANNEL</span></div>;
   if (auth.setupRequired) return <AuthGate mode="setup" onAuthenticated={(result) => setAuth((value) => ({ ...value, authenticated: true, setupRequired: false, required: true, recoveryRequired: true, recoveryMode: result?.recoveryMode || "email", recoveryEmail: result?.recoveryEmail || value.recoveryEmail, recoveryQuestion: result?.recoveryQuestion || value.recoveryQuestion }))} />;
-  if (auth.required && !auth.authenticated) return <AuthGate mode="login" canRecover={auth.recoveryRequired} recoveryMode={auth.recoveryMode} recoveryEmail={auth.recoveryEmail} recoveryQuestion={auth.recoveryQuestion} onAuthenticated={(result) => setAuth((value) => ({ ...value, authenticated: true, recoveryRequired: Boolean(result?.recoveryRequired ?? value.recoveryRequired), recoveryMode: result?.recoveryMode || value.recoveryMode, recoveryEmail: result?.recoveryEmail || value.recoveryEmail, recoveryQuestion: result?.recoveryQuestion || value.recoveryQuestion }))} />;
+  if (isRecoveryRoute) return <AuthGate mode="recover" recoveryMode={auth.recoveryMode} recoveryEmail={auth.recoveryEmail} recoveryQuestion={auth.recoveryQuestion} recoveryCooldownSeconds={auth.recoveryCooldownSeconds} onAuthenticated={() => window.location.replace("/config")} onReturnToLogin={() => window.location.replace("/config")} />;
+  if (auth.required && !auth.authenticated) return <AuthGate mode="login" canRecover={auth.recoveryRequired} recoveryMode={auth.recoveryMode} recoveryEmail={auth.recoveryEmail} recoveryQuestion={auth.recoveryQuestion} recoveryCooldownSeconds={auth.recoveryCooldownSeconds} onRequestRecovery={() => window.location.assign("/recovery-password")} onAuthenticated={(result) => setAuth((value) => ({ ...value, authenticated: true, recoveryRequired: Boolean(result?.recoveryRequired ?? value.recoveryRequired), recoveryMode: result?.recoveryMode || value.recoveryMode, recoveryEmail: result?.recoveryEmail || value.recoveryEmail, recoveryQuestion: result?.recoveryQuestion || value.recoveryQuestion }))} />;
 
   return (
     <div className="config-shell">
@@ -1009,6 +1065,7 @@ export function ConfigPage() {
         <div className="config-header__actions">
           <SaveIndicator status={saveStatus} revision={draft.revision} />
           <a href="/" target="_blank"><Eye size={15} /><span>查看主页</span></a>
+          {auth.required && <button type="button" onClick={() => setPasswordChangeOpen(true)}><KeyRound size={15} /><span>修改密码</span></button>}
           {auth.required && <button type="button" onClick={() => setRecoveryEmailOpen(true)}><Mail size={15} /><span>恢复邮箱</span></button>}
           {auth.required && <button type="button" onClick={logout} aria-label="退出配置会话"><LogOut size={15} /></button>}
         </div>
@@ -1038,6 +1095,7 @@ export function ConfigPage() {
         {previewCollapsed ? <button className="preview-restore" type="button" onClick={() => setPreviewCollapsed(false)}><PanelRight size={17} /><span>打开实时预览</span><i /></button> : <PreviewPane draft={draft} device={device} setDevice={setDevice} previewRef={previewRef} collapsed={previewCollapsed} setCollapsed={setPreviewCollapsed} />}
       </div>
       {recoveryEmailOpen && <RecoveryEmailDialog currentEmail={auth.recoveryEmail} onClose={() => setRecoveryEmailOpen(false)} onSaved={(recoveryEmail) => { setAuth((value) => ({ ...value, recoveryEmail })); setRecoveryEmailOpen(false); }} />}
+      {passwordChangeOpen && <PasswordChangeDialog onClose={() => setPasswordChangeOpen(false)} onChanged={() => { setPasswordChangeOpen(false); setAuth((value) => ({ ...value, authenticated: false, required: true })); }} onReturnToLogin={() => { setPasswordChangeOpen(false); logout(); }} />}
     </div>
   );
 }

@@ -54,10 +54,10 @@
     "showQuote": true
   },
   "metrics": [
-    { "id": "metric-1", "label": "活跃项目", "value": "12", "suffix": "", "trend": "+3 this season" },
-    { "id": "metric-2", "label": "构建节点", "value": "2.4", "suffix": "K", "trend": "98.7% stable" },
-    { "id": "metric-3", "label": "在线时长", "value": "860", "suffix": "D", "trend": "continuous" },
-    { "id": "metric-4", "label": "探索指数", "value": "94", "suffix": "%", "trend": "rising" }
+    { "id": "metric-1", "label": "活跃项目", "value": "12", "suffix": "", "trend": "+3 this season", "source": "manual" },
+    { "id": "metric-2", "label": "构建节点", "value": "2.4", "suffix": "K", "trend": "98.7% stable", "source": "manual" },
+    { "id": "metric-3", "label": "在线时长", "value": "860", "suffix": "D", "trend": "continuous", "source": "serverUptime" },
+    { "id": "metric-4", "label": "探索指数", "value": "94", "suffix": "%", "trend": "rising", "source": "manual" }
   ],
   "capabilities": [
     { "id": "cap-1", "label": "Product Systems", "value": 92, "color": "#63f3ff" },

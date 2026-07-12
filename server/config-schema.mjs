@@ -252,13 +252,17 @@ export function validateConfig(input) {
 
   const metrics = uniqueIds(
     array(root.metrics, "$.metrics", 12, (entry, path) => {
-      const item = object(entry, path, ["id", "label", "value", "suffix", "trend"]);
+      const item = object(entry, path, ["id", "label", "value", "suffix", "trend", "source"]);
+      const metricId = id(item.id, `${path}.id`);
       return {
-        id: id(item.id, `${path}.id`),
+        id: metricId,
         label: string(item.label, `${path}.label`, { min: 1, max: 64 }),
         value: string(item.value, `${path}.value`, { min: 1, max: 24 }),
         suffix: string(item.suffix, `${path}.suffix`, { min: 0, max: 16 }),
         trend: string(item.trend, `${path}.trend`, { min: 0, max: 80 }),
+        source: metricId === "metric-3"
+          ? (item.source === undefined ? "serverUptime" : enumeration(item.source, `${path}.source`, ["manual", "serverUptime"]))
+          : "manual",
       };
     }),
     "$.metrics",

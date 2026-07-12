@@ -52,7 +52,7 @@ export class AuthStore {
   async setCredentials({ passwordHash, recoveryEmail } = {}) {
     const normalizedEmail = typeof recoveryEmail === "string" ? recoveryEmail.trim().toLowerCase() : "";
     if (typeof passwordHash !== "string" || !passwordHash) throw new TypeError("passwordHash is required.");
-    if (!EMAIL_PATTERN.test(normalizedEmail)) throw new TypeError("recoveryEmail is required.");
+    if (normalizedEmail && !EMAIL_PATTERN.test(normalizedEmail)) throw new TypeError("recoveryEmail is invalid.");
     const next = { schemaVersion: 1, passwordHash, recoveryEmail: normalizedEmail };
     await atomicWriteJson(this.authPath, next);
     this.#current = next;

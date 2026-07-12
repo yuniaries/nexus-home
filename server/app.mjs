@@ -1,4 +1,5 @@
 import { access } from "node:fs/promises";
+import { uptime as systemUptime } from "node:os";
 import path from "node:path";
 import express from "express";
 import { ConfigEventHub } from "./event-hub.mjs";
@@ -182,6 +183,7 @@ export async function createNexusApp(options = {}) {
       status: store.ready ? "ok" : "not_ready",
       revision: store.ready ? store.get().revision : null,
       uptimeSeconds: Math.floor(process.uptime()),
+      serverUptimeSeconds: Math.floor(systemUptime()),
     });
   };
   app.get("/api/health", health);
@@ -189,14 +191,20 @@ export async function createNexusApp(options = {}) {
   app.get("/api/health/ready", health);
 
   app.get("/api/session", (request, response) => {
-    response.json({
+    const recoveryEmail = authStore.getRecoveryEmail();
+    const recoveryCooldownSeconds = authStore.hasRecoveryEmail()
+      ? recoveryCodes.status(recoveryEmail).retryAfterSeconds
+      : 0;
+    const payload = {
       setupRequired: !passwordConfigured(),
       passwordRequired: passwordConfigured(),
       recoveryRequired: authStore.hasRecovery(),
       recoveryMode: authStore.hasRecoveryEmail() ? "email" : "",
-      recoveryEmail: authStore.getRecoveryEmail(),
+      recoveryEmail,
       authenticated: sessions.authenticate(request),
-    });
+    };
+    if (recoveryCooldownSeconds > 0) payload.recoveryCooldownSeconds = recoveryCooldownSeconds;
+    response.json(payload);
   });
 
   app.post("/api/session", async (request, response) => {
@@ -300,7 +308,7 @@ export async function createNexusApp(options = {}) {
       return;
     }
     loginLimiter.success(`${request.ip}:recovery-email`);
-    response.json({ sent: true, expiresAt: new Date(issued.expiresAt).toISOString() });
+    response.json({ sent: true, expiresAt: new Date(issued.expiresAt).toISOString(), retryAfterSeconds: recoveryCodes.status(recoveryEmail).retryAfterSeconds });
   });
 
   app.put("/api/session/recovery-email", async (request, response) => {
@@ -378,6 +386,38 @@ export async function createNexusApp(options = {}) {
       authenticated: true,
       expiresAt: new Date(session.expiresAt).toISOString(),
     });
+  });
+
+  app.put("/api/session/password", async (request, response) => {
+    if (!sessions.authenticate(request)) {
+      response.status(401).json({ code: "AUTH_REQUIRED", error: "登录状态已失效，请重新登录。" });
+      return;
+    }
+    if (!isSameOrigin(request)) {
+      response.status(403).json({ code: "ORIGIN_MISMATCH", error: "请求来源不受信任。" });
+      return;
+    }
+    const currentPassword = request.body?.currentPassword;
+    const newPassword = request.body?.newPassword;
+    if (typeof currentPassword !== "string" || !currentPassword || typeof newPassword !== "string" || !newPassword.trim()) {
+      response.status(400).json({ code: "PASSWORD_REQUIRED", error: "请输入当前密码和新密码。" });
+      return;
+    }
+    if (!sessions.verifyPassword(currentPassword)) {
+      response.status(401).json({ code: "INVALID_CREDENTIALS", error: "当前密码不正确。" });
+      return;
+    }
+    if (currentPassword === newPassword) {
+      response.status(400).json({ code: "PASSWORD_UNCHANGED", error: "新密码不能与旧密码相同。" });
+      return;
+    }
+
+    const passwordHash = hashPassword(newPassword);
+    await authStore.setCredentials({ passwordHash, recoveryEmail: authStore.getRecoveryEmail() });
+    sessions.clear();
+    sessions.setPasswordHash(passwordHash);
+    response.set("Set-Cookie", sessions.clearCookie(request));
+    response.json({ changed: true, loggedOut: true });
   });
 
   app.delete("/api/session", (request, response) => {

@@ -1072,6 +1072,8 @@
 .project-card.is-featured {
   min-height: 585px;
   grid-column: span 7;
+  border-color: color-mix(in srgb, var(--project-color) 60%, var(--hairline));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--project-color) 18%, transparent), 0 28px 85px color-mix(in srgb, var(--project-color) 13%, transparent);
 }
 
 .project-card:nth-child(2) { grid-column: span 5; }
@@ -1236,6 +1238,22 @@
   font-family: Consolas, monospace;
   font-size: 0.55rem;
   letter-spacing: 0.12em;
+}
+
+.project-featured {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 18px;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--project-color) 48%, transparent);
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--project-color) 82%, white);
+  background: color-mix(in srgb, var(--project-color) 13%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--project-color) 16%, transparent);
+  font-family: Consolas, monospace;
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
 }
 
 .project-status { display: inline-flex; align-items: center; gap: 7px; color: color-mix(in srgb, var(--project-color) 74%, var(--text)); }
@@ -1842,15 +1860,27 @@
 @keyframes command-in { from { opacity: 0; transform: translateY(-12px) scale(.975); filter: blur(7px); } to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
 
 /* Density modes */
+.home-shell.density-compact .hero { min-height: 72svh; padding-block: clamp(54px, 7vw, 92px); }
+.home-shell.density-compact .hero-grid { gap: clamp(18px, 3vw, 38px); }
+.home-shell.density-compact .metric-rail { margin-top: 4px; }
+.home-shell.density-compact .metric-cell { min-height: 142px; padding: 17px; }
 .home-shell.density-compact .projects-section,
 .home-shell.density-compact .capability-section,
-.home-shell.density-compact .contact-section { padding-top: clamp(88px, 10vw, 140px); }
-.home-shell.density-compact .hero { min-height: 90svh; }
-.home-shell.density-compact .project-card { min-height: 420px; }
+.home-shell.density-compact .contact-section { padding-top: clamp(72px, 8vw, 112px); }
+.home-shell.density-compact .project-grid { gap: 14px; }
+.home-shell.density-compact .project-card { min-height: 350px; }
+
+.home-shell.density-balanced .hero { min-height: 88svh; }
+.home-shell.density-balanced .metric-cell { min-height: 180px; }
+
+.home-shell.density-rich .hero { min-height: 108svh; padding-block: clamp(88px, 12vw, 150px); }
+.home-shell.density-rich .hero-grid { gap: clamp(40px, 6vw, 86px); }
+.home-shell.density-rich .metric-rail { margin-top: 42px; }
+.home-shell.density-rich .metric-cell { min-height: 232px; padding: 31px; }
 .home-shell.density-rich .projects-section,
 .home-shell.density-rich .capability-section,
-.home-shell.density-rich .contact-section { padding-top: clamp(160px, 18vw, 260px); }
-.home-shell.density-rich .project-grid { gap: 28px; }
+.home-shell.density-rich .contact-section { padding-top: clamp(180px, 20vw, 300px); }
+.home-shell.density-rich .project-grid { gap: 32px; }
 
 /* Embedded live preview */
 .home-shell.is-embedded {

@@ -23,13 +23,22 @@ export class RecoveryCodeStore {
     this.entries = new Map();
   }
 
+  prune() {
+    const now = this.clock();
+    for (const [key, entry] of this.entries) {
+      if (entry.expiresAt <= now) this.entries.delete(key);
+    }
+  }
+
   status(email) {
+    this.prune();
     const entry = this.entries.get(email.toLowerCase());
     const remainingMs = Math.max(0, (entry?.lastIssuedAt ?? 0) + this.cooldownMs - this.clock());
     return { allowed: remainingMs === 0, retryAfterSeconds: Math.ceil(remainingMs / 1000) };
   }
 
   issue(email) {
+    this.prune();
     const code = newCode();
     const now = this.clock();
     this.entries.set(email.toLowerCase(), { hash: digest(code), expiresAt: now + this.ttlMs, lastIssuedAt: now, attempts: 0 });
@@ -39,13 +48,18 @@ export class RecoveryCodeStore {
   verify(email, code) {
     const key = email.toLowerCase();
     const entry = this.entries.get(key);
-    if (!entry || entry.expiresAt <= this.clock() || entry.attempts >= this.maxAttempts || typeof code !== "string" || !/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6}$/.test(code)) {
-      this.entries.delete(key);
+    if (!entry || entry.consumed || entry.expiresAt <= this.clock() || entry.attempts >= this.maxAttempts || typeof code !== "string" || !/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6}$/.test(code)) {
+      if (entry?.expiresAt <= this.clock()) this.entries.delete(key);
       return false;
     }
     entry.attempts += 1;
     const valid = timingSafeEqual(entry.hash, digest(code.toUpperCase()));
-    if (valid) this.entries.delete(key);
+    if (valid) {
+      // The verification code can only be consumed once, while its separate
+      // send cooldown remains available for the full 60-second window.
+      entry.consumed = true;
+      entry.hash = undefined;
+    }
     return valid;
   }
 

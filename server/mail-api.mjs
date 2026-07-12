@@ -16,6 +16,16 @@ export function createMailApi(options = {}) {
   const clock = options.clock ?? (() => Date.now());
   const emailCooldowns = new Map();
   const ipWindows = new Map();
+  const pruneRateState = (now) => {
+    for (const [email, issuedAt] of emailCooldowns) {
+      if (now - issuedAt >= WINDOW_MS) emailCooldowns.delete(email);
+    }
+    for (const [ip, stamps] of ipWindows) {
+      const active = stamps.filter((stamp) => now - stamp < WINDOW_MS);
+      if (active.length) ipWindows.set(ip, active);
+      else ipWindows.delete(ip);
+    }
+  };
 
   app.disable("x-powered-by");
   app.set("trust proxy", options.trustProxy ?? process.env.TRUST_PROXY === "1");
@@ -43,6 +53,7 @@ export function createMailApi(options = {}) {
     }
 
     const now = clock();
+    pruneRateState(now);
     const emailLastSent = emailCooldowns.get(to);
     if (emailLastSent && now - emailLastSent < WINDOW_MS) {
       const seconds = retryAfter(emailLastSent, now);

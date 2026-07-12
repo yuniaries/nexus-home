@@ -186,21 +186,38 @@ function Hero({ config, now }) {
   );
 }
 
-function MetricRail({ metrics }) {
+function formatServerUptime(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(seconds / 86_400);
+  const hours = Math.floor((seconds % 86_400) / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  const remainder = seconds % 60;
+  return {
+    value: String(days).padStart(2, "0"),
+    suffix: `D ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`,
+    trend: "SERVER UPTIME · LIVE",
+  };
+}
+
+function MetricRail({ metrics, serverUptimeSeconds }) {
   return (
     <section className="metric-rail section-shell" aria-label="关键数据">
-      {metrics.map((metric, index) => (
-        <div className="metric-cell" key={metric.id || index}>
+      {metrics.map((metric, index) => {
+        const isServerUptime = metric.id === "metric-3" && metric.source === "serverUptime";
+        const display = isServerUptime && Number.isFinite(serverUptimeSeconds)
+          ? { ...metric, ...formatServerUptime(serverUptimeSeconds) }
+          : metric;
+        return <div className="metric-cell" key={metric.id || index}>
           <div className="metric-cell__top">
             <span>0{index + 1}</span>
             <Activity size={15} />
           </div>
-          <strong>{metric.value}<em>{metric.suffix}</em></strong>
+          <strong>{display.value}<em>{display.suffix}</em></strong>
           <div className="metric-cell__meta">
-            <span>{metric.label}</span><small>{metric.trend}</small>
+            <span>{display.label}</span><small>{display.trend}</small>
           </div>
-        </div>
-      ))}
+        </div>;
+      })}
     </section>
   );
 }
@@ -234,6 +251,7 @@ function ProjectVisual({ project, index }) {
 }
 
 function Projects({ projects }) {
+  const homepageProjects = [...projects].sort((left, right) => Number(Boolean(right.featured)) - Number(Boolean(left.featured)));
   return (
     <section id="projects" className="projects-section section-shell">
       <SectionHeading
@@ -245,7 +263,7 @@ function Projects({ projects }) {
       />
 
       <div className="project-grid">
-        {projects.map((project, index) => (
+        {homepageProjects.map((project, index) => (
           <a
             className={`project-card ${project.featured ? "is-featured" : ""}`}
             key={project.id || index}
@@ -260,6 +278,7 @@ function Projects({ projects }) {
                 <span>{project.index || String(index + 1).padStart(2, "0")}</span>
                 <span className="project-status"><i />{project.status}</span>
               </div>
+              {project.featured && <span className="project-featured">重点项目 / PRIMARY</span>}
               <h3>{project.title}</h3>
               <p>{project.description}</p>
               <div className="project-card__footer">
@@ -467,6 +486,7 @@ function CommandPalette({ open, onClose, config }) {
 export function HomePage() {
   const { config, connection } = useSiteConfig();
   const [now, setNow] = useState(new Date());
+  const [uptimeSnapshot, setUptimeSnapshot] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const embedded = new URLSearchParams(window.location.search).has("embedded");
@@ -499,6 +519,23 @@ export function HomePage() {
   }, [config.identity.name, config.identity.role]);
 
   useEffect(() => {
+    let active = true;
+    const syncUptime = () => {
+      fetch("/api/health", { credentials: "same-origin" })
+        .then((response) => response.ok ? response.json() : null)
+        .then((data) => {
+          if (active && Number.isFinite(data?.serverUptimeSeconds)) {
+            setUptimeSnapshot({ seconds: data.serverUptimeSeconds, capturedAt: Date.now() });
+          }
+        })
+        .catch(() => {});
+    };
+    syncUptime();
+    const refresh = window.setInterval(syncUptime, 60_000);
+    return () => { active = false; window.clearInterval(refresh); };
+  }, []);
+
+  useEffect(() => {
     if (!config.effects.pointerGlow) return undefined;
     const onMove = (event) => {
       document.documentElement.style.setProperty("--pointer-x", `${event.clientX}px`);
@@ -525,6 +562,9 @@ export function HomePage() {
     "--glow-strength": config.theme.glow,
     "--motion-speed": config.effects.motionSpeed,
   };
+  const serverUptimeSeconds = uptimeSnapshot
+    ? uptimeSnapshot.seconds + Math.floor((now.getTime() - uptimeSnapshot.capturedAt) / 1_000)
+    : null;
 
   return (
     <div className={`home-shell density-${config.layout.density} ${embedded ? "is-embedded" : ""} ${config.effects.motion ? "motion-on" : "motion-off"}`} style={style}>
@@ -541,7 +581,7 @@ export function HomePage() {
       <TopBar config={config} connection={connection} menuOpen={menuOpen} setMenuOpen={setMenuOpen} openCommand={() => setCommandOpen(true)} />
       <main>
         <Hero config={config} now={now} />
-        {config.layout.showMetrics && <MetricRail metrics={config.metrics} />}
+        {config.layout.showMetrics && <MetricRail metrics={config.metrics} serverUptimeSeconds={serverUptimeSeconds} />}
         {config.layout.showProjects && <Projects projects={config.projects} />}
         {config.layout.showCapabilities && <Capabilities capabilities={config.capabilities} activity={config.activity} showActivity={config.layout.showActivity} />}
         <Contact config={config} />
