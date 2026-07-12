@@ -106,19 +106,22 @@ docker run -d \
 
 如果你使用 1Panel、Nginx、Cloudflare 等方式把域名转发到容器，请保留 `-e TRUST_PROXY=1`。如果只是直接通过 `IP:21026` 访问，请删除这一整行。
 
-### 从零开始重新初始化
+### 完整删除与从零开始
 
-以下命令会删除当前 NEXUS HOME 的主页配置、管理员密码和恢复邮箱。下次启动容器并打开 `/config` 时，将重新进入首次设置流程。
+如果不再使用 NEXUS HOME，或希望完全从零开始，请按顺序执行以下命令。它会删除主页容器、所有站点数据和本地 Docker 镜像；下一次部署时会重新下载镜像，并在打开 `/config` 后进入首次设置流程。
 
 ```bash
 # 停止并删除主页容器；若容器不存在也不会中断命令。
 docker rm -f nexus-home 2>/dev/null || true
 
 # 删除持久化数据卷：主页配置、管理员密码哈希与恢复邮箱都会被清空。
-docker volume rm nexus-home-data
+docker volume rm nexus-home-data 2>/dev/null || true
+
+# 删除本机已拉取的 NEXUS HOME 镜像；下次启动时需要重新 docker pull。
+docker image rm yuni020126/nexus-home:latest 2>/dev/null || true
 ```
 
-这不会删除 Docker 镜像，也不会影响中央邮件服务 `nexus-mailapi`。
+如果同一台服务器还运行其他使用 `yuni020126/nexus-home:latest` 镜像的服务，请跳过“删除本地镜像”这一行，避免影响这些服务。
 
 ## Compose
 
