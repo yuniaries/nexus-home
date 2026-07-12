@@ -1,3 +1,6 @@
+Exit code: 0
+Wall time: 0.4 seconds
+Output:
 # NEXUS HOME
 
 NEXUS HOME 是一套带实时配置台的个人主页。公开页面位于 `/`，配置台位于 `/config`；保存配置后，已打开的主页与预览会立即同步。
@@ -117,3 +120,4 @@ docker compose down
 ## 备份
 
 备份 `data/config.json` 与 `data/auth.json` 即可保留站点配置和管理员认证状态。
+
